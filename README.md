@@ -23,4 +23,4 @@ TODO
 ## References
 TODO
 
-This tools is developed by Ayushi Sharma
+This tool is developed by Ayushi Sharma
