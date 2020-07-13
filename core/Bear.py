@@ -11,10 +11,9 @@ class Bear(object):
         self.target = target
         self.compile_commands = compile_commands
     
-    def parse_compile_commands(self):
-        # open compile commands
-        # read the data for a file
-        # pass the compilation command to Utils.compile_file
+    def compile_target(self):
+        args = self.parse_compile_commands()
+        Utils.compile_file(self.target, args, exit=True)
         compiled = True # modify based on the result
         if (compiled):
             logging.info("[+] Preprocessing completed!")
@@ -23,3 +22,9 @@ class Bear(object):
             logging.info("[+] Unable to preprocess the file! Exiting..")
             exit(-1)
             return False
+
+    def parse_compile_commands(self):
+        # open compile commands
+        # read the data for a file
+        extracted_args = ""
+        return extracted_args

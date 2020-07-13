@@ -26,6 +26,9 @@ def main():
 
     verbose = args.verbose
 
+    bear = Bear(target, compile_commands, verbose)
+    bear.compile_target()
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     main()
