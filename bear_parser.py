@@ -1,7 +1,8 @@
 import json
 import collections
 import os
-from base_component import log_error
+import sys
+
 
 """
 Handles parsing json file produced by the Bear
@@ -38,19 +39,23 @@ def parse_compile_json(json_file_path):
                         curr_args[i] = cura[0:cn+1] + "'" + cura[cn+1:]
                         curr_args[i] = curr_args[i] + "'"
                     i += 1
-
                 work_dir = curr_command["directory"]
-                output_file = curr_command["output"][-1]
+                print("Current command : " + str(curr_command))
                 if "loader" not in curr_command:
                     src_file = curr_command["file"]
+                    output_file = "out/"+src_file.split("/")[-1]
                     if "dev/" in src_file:
                         compile_commands.append(CompilationCommand(curr_args, work_dir, src_file, output_file))
                 else:
                     input_files = curr_command["files"]
-                    if "drivers/" in output_file:
+                    if "dev/" in output_file:
                         linker_commands.append(LinkerCommand(curr_args, work_dir, input_files, output_file))
-        except Exception as e:
-            log_error("Error occurred while trying to parse provided json file", json_file_path, "error", e.message)
+
+        except:
+            print("Error occurred while trying to parse provided json file")
     else:
-        log_error("Provided json file doesn't exist", json_file_path)
+        print("Provided json file doesn't exist")
+    print("------------\ncompiler commands : "+ str(compile_commands))
     return compile_commands, linker_commands
+
+parse_compile_json(sys.argv[1])
