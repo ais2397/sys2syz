@@ -20,7 +20,6 @@ class Bear(object):
                 u = Utils(curr_command[1])
                 output_file = curr_command[3]
                 u.run_cmd(command + " > " + output_file, doexit = True)
-            logging.info("[+] Preprocessing completed!")
         except:
             print "Failed to generate preprocessed files"
 
@@ -34,7 +33,7 @@ class Bear(object):
             all_cont = fp.read()
             fp.close()
             json_obj = json.loads(all_cont)
-            driver_path = "/dev/" + self.target
+            driver_path = "/dev/" + self.target.split("/")[-1]
             for curr_command in json_obj:
                 src_file = curr_command["file"]
                 if driver_path in src_file:

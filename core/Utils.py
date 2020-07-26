@@ -21,6 +21,16 @@ class Utils(object):
             return False
 
     @staticmethod
+    def dir_exists(path, exit=False):
+        if os.path.isdir(path):
+            return True
+        else:
+            logging.warn("[+] No file found at %s" % path)
+            if exit:
+                exit(0)
+            return False
+
+    @staticmethod
     def compile_file(file, args, exit=False):
         # TODO: complete this
         subprocess.check_call()
@@ -47,7 +57,6 @@ class Utils(object):
         else:
             logging.debug("Unable to delete directory")
 
-    @staticmethod
     def delete_file(path):
         if os.path.isfile(path):
             os.remove(path)
@@ -58,6 +67,15 @@ class Utils(object):
         my_env = os.environ.copy()
         if version == self.ENV_NONE:
             return my_env
+            
+    def run_cmd(self, command, env=ENV_NONE, doexit=False):
+        try:
+            subprocess.check_call(command, env=self.get_env(env), shell=True, cwd=self.cwd)
+        except Exception as e:
+            logging.exception(e)
+            logging.critical("Unable to run command : {}".format(command))
+            if doexit:
+                exit(-1)
 
     def run_silent_cmd(self, command, env=ENV_NONE, doexit=False):
         try:
