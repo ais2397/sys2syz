@@ -14,8 +14,16 @@ def main():
 
     parser.add_argument("-t", "--target", help="target file to generate descriptions for", type=str, required=True)
     parser.add_argument("-c", "--compile-commands", help="path to compile_commands.json", type=str, required=True)
-    parser.add_argument("-v", "--verbosity", help="make Griller spit more things out", action="store_true")
+    parser.add_argument("-v", "--verbosity", help="make Griller spit more things out", action="count")
     args = parser.parse_args()
+
+    verbose = args.verbosity
+
+    if args.verbosity == 1:
+        logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    
+    elif args.verbosity == 2:
+        logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
     target = os.path.realpath(args.target)
     #Utils.dir_exists(target, True)     #throws error
@@ -24,8 +32,6 @@ def main():
     compile_commands = os.path.realpath(args.compile_commands)
     #Utils.file_exists(compile_commands, True)      throws error
     logging.info("[+] The compile commands is %s", compile_commands)
-
-    verbose = args.verbosity
 
     bear = Bear(target, compile_commands, verbose)
     commands = bear.parse_compile_commands()
@@ -38,5 +44,4 @@ def main():
     logging.info("[+] Extracted ioctl commands")
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     main()

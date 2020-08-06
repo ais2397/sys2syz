@@ -26,10 +26,14 @@ class Bear(object):
                     if is_gcc_flag_allowed(curr_flag):
                         modified_args.append(curr_flag)
                 command = " ".join(modified_args) +" -E " + curr_command[1] + "/" + curr_command[2]
-                u = Utils(curr_command[1])
                 output_file = curr_command[3]
+                logging.debug("[*] Initialising the environment " + curr_command[1])
+                u = Utils(curr_command[1])
+                logging.debug("[*] Generating " + output_file.split("/")[-1])
                 u.run_cmd(command + " > " + output_file, doexit = True)
-        except:
+            logging.debug("[*] Generated preprocessed files")
+        except Exception as e:
+            logging.exception(e)
             print "Failed to generate preprocessed files"
 
     def parse_compile_commands(self):
@@ -59,8 +63,11 @@ class Bear(object):
                         i += 1
                     work_dir = curr_command["directory"]
                     output_file = src_file + ".preprocessed" 
+                    logging.debug("[*] Extracting commands for " + src_file.split("/")[-1] )
                     commands.append(CompilationCommand(curr_args, work_dir, src_file, output_file))
-        except:
+            logging.debug("[*] Commands Extracted")
+        except Exception as e:
+            logging.exception(e)
             print("Error occurred while trying to parse provided json file")
         return commands
 

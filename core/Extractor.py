@@ -2,6 +2,7 @@
 # Description : Extracts the necessary details from the source code
 import Utils
 
+import logging
 import os
 import re
 
@@ -47,7 +48,10 @@ class Extractor(object):
                         command_desc = ["inout", command, description]
                     if command_desc:
                         ioctl_commands.append(command_desc)
-        except:
+                logging.debug("[*] Analysed " + file)
+            logging.debug("[*] Ioctl commands extracted")
+        except Exception as e:
+            logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
         return ioctl_commands
     
