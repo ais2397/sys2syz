@@ -36,12 +36,22 @@ def main():
     bear = Bear(target, compile_commands, verbose)
     commands = bear.parse_compile_commands()
     bear.compile_target(commands)
-    logging.info("[+] Preprocessed files have been generated at %s", target)
+    logging.info("[+] Preprocessed files have been generated")
 
     extractor = Extractor(target)
     files = extractor.get_header_files()
     extractor.get_ioctls(files)
     logging.info("[+] Extracted ioctl commands")
+
+    cwd = os.getcwd()
+    out_dir = cwd + "/preprocessed/" + target.split("/")[-1] + "/out"
+    preprocessed_path = cwd + "/preprocessed/" + target.split("/")[-1]
+    if not dir_exists(out_dir):
+        os.mkdir(out_dir)
+    u = Utils.Utils(preprocessed_path)
+    for filename in os.listdir(preprocessed_path):
+        if filename.endswith('.preprocessed'):
+            u.run_cmd(cwd + "/c2xml " + filename + " > " + out_dir + "/" + filename)
 
 if __name__ == "__main__":
     main()

@@ -95,3 +95,21 @@ class Utils(object):
             logging.critical("Unable to run command : {}".format(command))
             if doexit:
                 exit(-1)
+
+def file_exists(path, exit=False):
+    if os.path.isfile(path):
+        return True
+    else:
+        logging.warn("[+] No file found at %s" % path)
+        if exit:
+            exit(0)
+        return False
+
+def dir_exists(path, exit=False):
+    if os.path.isdir(path):
+        return True
+    else:
+        logging.warn("[+] No file found at %s" % path)
+        if exit:
+            exit(0)
+        return False

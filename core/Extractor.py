@@ -16,6 +16,7 @@ class Extractor(object):
         # use regex to match the IO calls
         # get the structure names and details
         try:
+            command_descs = ""
             ioctl_commands = []
             for file in header_files:
                 fd = open(self.target + "/" + file, "r")
@@ -48,8 +49,16 @@ class Extractor(object):
                         command_desc = ["inout", command, description]
                     if command_desc:
                         ioctl_commands.append(command_desc)
+                        command_descs += ", ".join(command_desc) + "\n"
                 logging.debug("[*] Analysed " + file)
-            logging.debug("[*] Ioctl commands extracted")
+            if command_descs == "":
+                logging.debug("[*] Doesn't have Ioctl calls")
+            else:
+                output_file_path = "preprocessed/" + self.target.split("/")[-1] + "/" + "ioctl_commands.txt"
+                output_file = open(output_file_path, "w")
+                output_file.write(command_descs)
+                logging.debug("[*] Ioctl commands stored at " + os.getcwd() + "/" + output_file_path)
+                output_file.close()
         except Exception as e:
             logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
