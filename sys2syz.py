@@ -2,6 +2,7 @@
 from core.Utils import *
 from core.Bear import *
 from core.Extractor import *
+from core.Descriptions import *
 
 # Default imports 
 import argparse
@@ -26,11 +27,11 @@ def main():
         logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
     target = os.path.realpath(args.target)
-    #Utils.dir_exists(target, True)     #throws error
+    Utils.dir_exists(target, True)
     logging.info("[+] The target file is %s", target)
 
     compile_commands = os.path.realpath(args.compile_commands)
-    #Utils.file_exists(compile_commands, True)      throws error
+    Utils.file_exists(compile_commands, True)
     logging.info("[+] The compile commands is %s", compile_commands)
 
     bear = Bear(target, compile_commands, verbose)
@@ -39,19 +40,24 @@ def main():
     logging.info("[+] Preprocessed files have been generated")
 
     extractor = Extractor(target)
-    files = extractor.get_header_files()
-    extractor.get_ioctls(files)
+    header_files = extractor.get_header_files()
+    ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
     logging.info("[+] Extracted ioctl commands")
 
     cwd = os.getcwd()
-    out_dir = cwd + "/preprocessed/" + target.split("/")[-1] + "/out"
+    out_dir = cwd + "/preprocessed/" + target.split("/")[-1] + "/out/"
     preprocessed_path = cwd + "/preprocessed/" + target.split("/")[-1]
     if not dir_exists(out_dir):
         os.mkdir(out_dir)
-    u = Utils.Utils(preprocessed_path)
+    u = Utils(preprocessed_path)
     for filename in os.listdir(preprocessed_path):
         if filename.endswith('.preprocessed'):
-            u.run_cmd(cwd + "/c2xml " + filename + " > " + out_dir + "/" + filename)
+            u.run_cmd(cwd + "/c2xml " + filename + " > " + out_dir + filename)
+
+    if ioctl_cmd_file is not None:
+        descriptions = Descriptions(out_dir)
+        out = descriptions.run(ioctl_cmd_file)
+        descriptions.make_file(out, cmd_header_files)
 
 if __name__ == "__main__":
     main()

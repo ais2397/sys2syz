@@ -178,7 +178,7 @@ def build_union(child):
 def pretty_structs():
     global structs_and_unions
     for key in structs_and_unions:
-        print(key + "\n" +structs_and_unions[key])
+        print(key + " " +structs_and_unions[key])
 
 def pretty_desc(desc):
     fd = "fd"

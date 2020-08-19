@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 # This script sets up the environment required for the tool to run.
 usage()
@@ -17,22 +17,27 @@ then
 	exit
 fi
 
-while getopts "b:sc" opt ;
+SYS2SYZ_PATH=$(pwd)
+
+while getopts "b:sc" opt && opt=-${opt} ;
 do
 	case "${opt}" in
-			b)
-					SYS2SYZ_PATH=$(pwd)
+			-b)
 					echo "Generating compile_commands.json"
 					cd ${OPTARG}
-					bear ./build.sh -j4 -m amd64 -u -U -T ../tool/ -O ../obj/ -R ../release -D ../dest/ modules
-					mv compile_commands.json $SYS2SYZ_PATH/.
+					bear ./build.sh -j4 -m amd64 -u -U -T ../tool/ -O ../obj/ -R $releas -D $dest_dir modules
+					#mv compile_commands.json $SYS2SYZ_PATH/.
 					cd $SYS2SYZ_PATH
+					echo $SYS2SYZ_PATH
 					;;
-			s)
+			-s)
+					echo "SETTING UP"
 					apt-get install -y bear
 					;;
-			c)
+			-c)
+					echo "CLEANING..."
 					rm compile_commands.json
+					rm -r preprocessed
 					;;
 			esac
 done

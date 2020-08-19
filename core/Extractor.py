@@ -18,6 +18,7 @@ class Extractor(object):
         try:
             command_descs = ""
             ioctl_commands = []
+            command_file = []
             for file in header_files:
                 fd = open(self.target + "/" + file, "r")
                 content = fd.readlines()
@@ -35,30 +36,37 @@ class Extractor(object):
                     if io_match:
                         command = io_match.groups()[0].strip()
                         command_desc = ["null", command, "null"]
+                        command_file.append(file)
                     elif ior_match:
                         command = ior_match.groups()[0].strip()
                         description = ior_match.groups()[-1]
                         command_desc = ["in", command, description]
+                        command_file.append(file)
                     elif iow_match:
                         command = iow_match.groups()[0].strip()
                         description = iow_match.groups()[-1]
                         command_desc = ["out", command, description]
+                        command_file.append(file)
                     elif iowr.match(line):
                         command = iowr_match.groups()[0].strip()
                         description = iowr_match.groups()[-1]
                         command_desc = ["inout", command, description]
+                        command_file.append(file)
                     if command_desc:
                         ioctl_commands.append(command_desc)
                         command_descs += ", ".join(command_desc) + "\n"
+                        command_file.append(file)
                 logging.debug("[*] Analysed " + file)
             if command_descs == "":
                 logging.debug("[*] Doesn't have Ioctl calls")
+                return None, None
             else:
                 output_file_path = "preprocessed/" + self.target.split("/")[-1] + "/" + "ioctl_commands.txt"
                 output_file = open(output_file_path, "w")
                 output_file.write(command_descs)
                 logging.debug("[*] Ioctl commands stored at " + os.getcwd() + "/" + output_file_path)
                 output_file.close()
+                return output_file_path, set(command_file)
         except Exception as e:
             logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
