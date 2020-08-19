@@ -2,6 +2,7 @@
 from core.Utils import *
 from core.Bear import *
 from core.Extractor import *
+from core.C2xml import *
 from core.Descriptions import *
 
 # Default imports 
@@ -44,20 +45,17 @@ def main():
     ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
     logging.info("[+] Extracted ioctl commands")
 
-    cwd = os.getcwd()
-    out_dir = cwd + "/preprocessed/" + target.split("/")[-1] + "/out/"
-    preprocessed_path = cwd + "/preprocessed/" + target.split("/")[-1]
-    if not dir_exists(out_dir):
-        os.mkdir(out_dir)
-    u = Utils(preprocessed_path)
-    for filename in os.listdir(preprocessed_path):
-        if filename.endswith('.preprocessed'):
-            u.run_cmd(cwd + "/c2xml " + filename + " > " + out_dir + filename)
+    c2xml = C2xml(target)
+    out_dir = c2xml.run_c2xml()
+    logging.info("[+] Created XML files")
 
     if ioctl_cmd_file is not None:
         descriptions = Descriptions(out_dir)
-        out = descriptions.run(ioctl_cmd_file)
-        descriptions.make_file(out, cmd_header_files)
+        struct_descriptions = descriptions.run(ioctl_cmd_file)
+        output_path = descriptions.make_file(struct_descriptions, cmd_header_files)
+        if output_path is not None:
+            logging.info("[+] Description file: " + output_path)
+        
 
 if __name__ == "__main__":
     main()

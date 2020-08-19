@@ -21,7 +21,7 @@ class Bear(object):
     
     def compile_target(self, compilation_commands):
         try:
-            output_path = os.getcwd() + "/preprocessed/"
+            output_path = os.getcwd() + "/out/preprocessed/"
             for i, curr_command in enumerate(compilation_commands):
                 '''modified_args=[]
                 for curr_flag in curr_command[0]:
@@ -49,9 +49,9 @@ class Bear(object):
             fp.close()
             json_obj = json.loads(all_cont)
             driver_path = "/dev/" + self.target.split("/")[-1]
-            output_path = os.getcwd() + "/preprocessed/" + self.target.split("/")[-1]
+            output_path = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
             if not dir_exists(output_path):
-                os.mkdir(output_path)
+                os.makedirs(output_path)
             for curr_command in json_obj:
                 src_file = curr_command["file"]
                 if driver_path in src_file:

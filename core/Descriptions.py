@@ -61,10 +61,10 @@ class Descriptions(object):
         try:
             for element in root:
                 if element.get("ident") == ident_name:
-                    return self.get_type(element)
+                    return self.get_type(element), element
                 for child in element:
                     if child.get("ident") == ident_name:
-                        return self.get_type(child)
+                        return self.get_type(child), child
             logging.info("TO-DO: Find again")
             self.get_id(self.current_root, ident_name)
         except Exception as e:
@@ -172,32 +172,59 @@ class Descriptions(object):
 
 
     def pretty_structs(self):
-        structs = ""
-        for key in self.structs_and_unions:
-            structs += (key + " " + self.structs_and_unions[key] +"\n")
-        return structs
+        try:
+            structs = ""
+            for key in self.structs_and_unions:
+                structs += (key + " " + self.structs_and_unions[key] +"\n")
+            return structs
+        except Exception as e:
+            logging.error(e)
+            logging.debug("[*] Error in parsing structs")
+
 
     def pretty_desc(self, fd):
-        descriptions = ""
-        for key in self.arguments:
-            desc_str = "ioctl$" + key + "("
-            desc_str += ", ".join([fd, key, str(self.arguments[key])])
-            desc_str += ")\n"
-            descriptions += desc_str
-        return descriptions
+        try:
+            descriptions = ""
+            if self.arguments is not None:
+                for key in self.arguments:
+                    desc_str = "ioctl$" + key + "("
+                    fd_ = "fd " + fd
+                    cmd = "cmd const[" + key + "]"
+                    arg = "arg " + str(self.arguments[key])
+                    desc_str += ", ".join([fd_, cmd, arg])
+                    desc_str += ")\n"
+                    descriptions += desc_str
+            return descriptions
+        except Exception as e:
+            logging.error(e)
+            logging.debug("[*] Error in parsing ioctl command descriptions")
 
-    def make_file(self, descriptions, header_files):
-        includes = ""
-        for file in header_files:
-            includes += "include <" + file + ">\n"
-        dev_name = self.target.split("/")[-3]
-        fd_str = "fd_" + dev_name
-        rsrc = "resource " + fd_str + "[fd]\n"
-        open_desc = "syz_open_dev$" + dev_name.upper()
-        open_desc += "(dev ptr[in, string[\"/dev/" + dev_name + "\"]], "
-        open_desc += "id intptr, flags flags[open_flags]) fd_" + dev_name + "\n"
-
-        print "\n\n".join([includes, rsrc, open_desc, self.pretty_desc(fd_str), descriptions])
+    def make_file(self, struct_descriptions, header_files):
+        try:
+            includes = ""
+            for file in header_files:
+                includes += "include <" + file + ">\n"
+            dev_name = self.target.split("/")[-3]
+            fd_str = "fd_" + dev_name
+            rsrc = "resource " + fd_str + "[fd]\n"
+            open_desc = "syz_open_dev$" + dev_name.upper()
+            open_desc += "(dev ptr[in, string[\"/dev/" + dev_name + "\"]], "
+            open_desc += "id intptr, flags flags[open_flags]) fd_" + dev_name + "\n"
+            func_descriptions = self.pretty_desc(fd_str)
+            
+            if func_descriptions is not None:
+        
+                desc_buf = "\n\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions])
+                output_file_path = os.getcwd() + "/out/" + "dev_" + dev_name + ".txt"
+                output_file = open( output_file_path, "w")
+                output_file.write(desc_buf)
+                output_file.close()
+                return output_file_path
+            else:
+                return None
+        except Exception as e:
+            logging.error(e)
+            logging.debug("[*] Error in making device file")
 
     def run(self, extracted_file):
         try:
@@ -211,7 +238,12 @@ class Descriptions(object):
                         if argument_name in type_dict.keys():
                             self.arguments[cmd] = type_dict.get(argument_name)
                         else:
-                            self.arguments[cmd] = self.get_id(self.get_root(argument_name), argument_name)
+                            raw_arg = self.get_id(self.get_root(argument_name), argument_name)
+                            if raw_arg is not None:
+                                arg_type = raw_arg[1].get("type")
+                                if arg_type in types:
+                                    arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
+                                self.arguments[cmd] = arg_str
             return str(self.pretty_structs())
         except Exception as e:
             logging.error(e)
