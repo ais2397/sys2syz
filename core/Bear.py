@@ -1,8 +1,6 @@
 # Module : Bear.py 
 # Description : Contains functions which handle the compilation of a file
-
-from Utils import *
-
+from core.Utils import *
 import os
 import logging
 import collections
@@ -20,6 +18,11 @@ class Bear(object):
         self.compile_commands = compile_commands
     
     def compile_target(self, compilation_commands):
+        """
+        Generates preprocessed files.
+        :return: True
+        """
+
         try:
             output_path = os.getcwd() + "/out/preprocessed/"
             for i, curr_command in enumerate(compilation_commands):
@@ -34,14 +37,18 @@ class Bear(object):
                 logging.debug("[*] Generating " + output_file.split("/")[-1])
                 u.run_cmd(command + " > " + output_file, doexit = True)
             logging.debug("[*] Generated preprocessed files are at" + output_path)
+            return True
         except Exception as e:
             logging.exception(e)
             print("Failed to generate preprocessed files")
 
     def parse_compile_commands(self):
+        """
+        Parses commands recorded by bear
+        :return:
+        """
+
         CompilationCommand = collections.namedtuple("CompilationCommand", ["curr_args", "work_dir", "src_file", "output_file"])
-        # open compile commands
-        # read the data for a file
         commands = []
         try:
             fp = open(self.compile_commands, "r")
@@ -49,6 +56,7 @@ class Bear(object):
             fp.close()
             json_obj = json.loads(all_cont)
             driver_path = "/dev/" + self.target.split("/")[-1]
+            #ouput path of all the preprocessed files
             output_path = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
             if not dir_exists(output_path):
                 os.makedirs(output_path)
@@ -72,19 +80,17 @@ class Bear(object):
                     logging.debug("[*] Extracting commands for " + src_file.split("/")[-1] )
                     commands.append(CompilationCommand(curr_args, work_dir, src_file, output_file))
             logging.debug("[*] Commands Extracted")
+            return self.compile_target(commands)
         except Exception as e:
             logging.exception(e)
             print("Error occurred while trying to parse provided json file")
-        return commands
 
 def is_gcc_flag_allowed(curr_flag):
     # Remove optimization flag
     if str(curr_flag)[:2] == "-O":
         return False
-
     # if the flag is invalid
     for curr_in_flag in INVALID_GCC_FLAGS:
         if curr_flag.startswith(curr_in_flag):
             return False
-
     return True

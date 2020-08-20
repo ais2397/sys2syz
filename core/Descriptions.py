@@ -33,6 +33,11 @@ class Descriptions(object):
             self.trees.append(tree)
 
     def get_root(self, ident_name):
+        """
+        Find root for the tree storing element with its name as ident_name
+        :return: root
+        """
+
         try:
             for tree in self.trees:
                 root = tree.getroot()
@@ -45,33 +50,48 @@ class Descriptions(object):
             logging.error(e)
             logging.debug('[*] Unable to find root')
 
-    def resolve_id(self, root, id):
+    def resolve_id(self, root, find_id):
+        """
+        Find node having id value same as find_id
+        :return: node
+        """
+
         try:
             for element in root:
-                if element.get("id") == id:
+                if element.get("id") == find_id:
                     return element
                 for child in element:
-                    if child.get("id") == id:
+                    if child.get("id") == find_id:
                         return child
         except Exception as e:
             log.error(e)
-            logging.debug("[*] Issue in resolving: %s", id)
+            logging.debug("[*] Issue in resolving: %s", find_id)
         
-    def get_id(self, root, ident_name):
+    def get_id(self, root, find_ident):
+        """
+        Find node having ident value same as find_ident
+        :return: 
+        """
+
         try:
             for element in root:
-                if element.get("ident") == ident_name:
+                if element.get("ident") == find_ident:
                     return self.get_type(element), element
                 for child in element:
-                    if child.get("ident") == ident_name:
+                    if child.get("ident") == find_ident:
                         return self.get_type(child), child
             logging.info("TO-DO: Find again")
-            self.get_id(self.current_root, ident_name)
+            self.get_id(self.current_root, find_ident)
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Issue in resolving: %s", ident_name)
+            logging.debug("[*] Issue in resolving: %s", find_ident)
 
     def get_type(self, child):
+        """
+        Fetch type of an element
+        :return:
+        """
+
         try:
             if child.get("type") == "struct":
                 logging.debug("TO-DO: struct")
@@ -114,11 +134,16 @@ class Descriptions(object):
                 logging.debug("TO-DO: base-type")
                 root = self.resolve_id(self.current_root, child.get("base-type"))
                 return self.get_type(root)
-        except Exception as (e):
+        except Exception as e:
             logging.error(e)
             logging.debug("Error occured while fetching the type")
 
     def build_ptr(self, child):
+        """
+        Build pointer
+        :return: 
+        """
+
         try:
             logging.debug("[*] Building pointer")
             name = child.get("ident")
@@ -137,6 +162,11 @@ class Descriptions(object):
             logging.debug("Error occured while resolving pointer")
 
     def build_struct(self, child):
+        """
+        Build struct
+        :return: Struct identifier
+        """
+
         try:
             logging.debug("[*] Building struct")
             name = child.get("ident")
@@ -154,6 +184,11 @@ class Descriptions(object):
             logging.debug("Error occured while resolving the struct")
 
     def build_union(self, child):
+        """
+        Build union
+        :return: Union identifier
+        """
+
         try:
             logging.debug("[*] Building union")
             name = child.get("ident")
@@ -172,6 +207,11 @@ class Descriptions(object):
 
 
     def pretty_structs(self):
+        """
+        Generates descriptions of structs and unions for syzkaller
+        :return:
+        """
+
         try:
             structs = ""
             for key in self.structs_and_unions:
@@ -182,7 +222,12 @@ class Descriptions(object):
             logging.debug("[*] Error in parsing structs")
 
 
-    def pretty_desc(self, fd):
+    def pretty_ioctl(self, fd):
+        """
+        Generates descriptions for ioctl calls
+        :return:
+        """
+
         try:
             descriptions = ""
             if self.arguments is not None:
@@ -190,8 +235,12 @@ class Descriptions(object):
                     desc_str = "ioctl$" + key + "("
                     fd_ = "fd " + fd
                     cmd = "cmd const[" + key + "]"
-                    arg = "arg " + str(self.arguments[key])
-                    desc_str += ", ".join([fd_, cmd, arg])
+                    arg = ""
+                    if self.arguments[key] is not None:
+                        arg = "arg " + str(self.arguments[key])
+                        desc_str += ", ".join([fd_, cmd, arg])
+                    else:
+                        desc_str += ", ".join([fd_, cmd])
                     desc_str += ")\n"
                     descriptions += desc_str
             return descriptions
@@ -199,7 +248,12 @@ class Descriptions(object):
             logging.error(e)
             logging.debug("[*] Error in parsing ioctl command descriptions")
 
-    def make_file(self, struct_descriptions, header_files):
+    def make_file(self, header_files):
+        """
+        Generates a device specific file with descriptions of ioctl calls
+        :return: Path of output file
+        """
+
         try:
             includes = ""
             for file in header_files:
@@ -210,7 +264,8 @@ class Descriptions(object):
             open_desc = "syz_open_dev$" + dev_name.upper()
             open_desc += "(dev ptr[in, string[\"/dev/" + dev_name + "\"]], "
             open_desc += "id intptr, flags flags[open_flags]) fd_" + dev_name + "\n"
-            func_descriptions = self.pretty_desc(fd_str)
+            func_descriptions = str(self.pretty_ioctl(fd_str))
+            struct_descriptions = str(self.pretty_structs())
             
             if func_descriptions is not None:
         
@@ -227,6 +282,10 @@ class Descriptions(object):
             logging.debug("[*] Error in making device file")
 
     def run(self, extracted_file):
+        """
+        Parses arguments and structures for ioctl calls
+        """
+        
         try:
             with open(extracted_file) as ioctl_commands:
                 commands = ioctl_commands.readlines()
@@ -241,10 +300,14 @@ class Descriptions(object):
                             raw_arg = self.get_id(self.get_root(argument_name), argument_name)
                             if raw_arg is not None:
                                 arg_type = raw_arg[1].get("type")
+                                arg_str = raw_arg[0]
                                 if arg_type in types:
                                     arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
+                                
                                 self.arguments[cmd] = arg_str
-            return str(self.pretty_structs())
+                    else:
+                        self.arguments[cmd] = None
+            return True
         except Exception as e:
             logging.error(e)
             logging.debug("Error while generating call descriptions")

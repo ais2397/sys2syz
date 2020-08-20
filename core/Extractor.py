@@ -1,6 +1,6 @@
 # Module : Extractor.py
 # Description : Extracts the necessary details from the source code
-import Utils
+from core.Utils import *
 
 import logging
 import os
@@ -11,10 +11,11 @@ class Extractor(object):
         self.target = target
 
     def get_ioctls(self, header_files):
+        """
+        Fetch the ioctl commands with their arguments and sort them on the basis of their type
+        :return:
+        """
 
-        # Get the headers
-        # use regex to match the IO calls
-        # get the structure names and details
         try:
             command_descs = ""
             ioctl_commands = []
@@ -61,19 +62,25 @@ class Extractor(object):
                 logging.debug("[*] Doesn't have Ioctl calls")
                 return None, None
             else:
-                output_file_path = "out/preprocessed/" + self.target.split("/")[-1] + "/" + "ioctl_commands.txt"
-                output_file = open(output_file_path, "w")
+                output_file_path = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1] + "/"
+                if not Utils.dir_exists(output_file_path, False):
+                    os.makedirs(output_file_path)
+                output_file = open(output_file_path + "ioctl_commands.txt", "w")
                 output_file.write(command_descs)
-                logging.debug("[*] Ioctl commands stored at " + os.getcwd() + "/" + output_file_path)
+                logging.debug("[*] Ioctl commands stored at " + output_file_path + "ioctl_commands.txt")
                 output_file.close()
-                return output_file_path, set(command_file)
+                return str(output_file_path + "ioctl_commands.txt"), set(command_file)
         except Exception as e:
             logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
-        return ioctl_commands
     
 
     def get_header_files(self):
+        """
+        Find all the header files in device folder
+        :return: list of header files
+        """
+        
         header_files = []
         for filename in os.listdir(self.target):
             if filename.endswith('.h'):
