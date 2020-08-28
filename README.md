@@ -33,9 +33,9 @@ The tool supports generation of syzkaller descriptions for NetBSD device driver'
  cd sys2syz
  ```
 - Run the setup script
-  ```shell
-  ./setup.sh -b <path_to_netbsd_src>
-  ```
+ ```shell
+ ./setup.sh -b <path_to_netbsd_src>
+ ```
 ## Features
 
 - Fetches ioctl calls of a particular device driver.
