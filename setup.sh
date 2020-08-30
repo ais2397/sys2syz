@@ -26,7 +26,7 @@ do
 					echo "Generating compile_commands.json"
 					cd ${OPTARG}
 					bear ./build.sh -j4 -m amd64 -u -U -T ../tool/ -O ../obj/ -R $releas -D $dest_dir modules
-					#mv compile_commands.json $SYS2SYZ_PATH/.
+					mv compile_commands.json $SYS2SYZ_PATH/.
 					cd $SYS2SYZ_PATH
 					echo $SYS2SYZ_PATH
 					;;

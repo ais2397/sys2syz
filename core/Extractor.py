@@ -62,6 +62,7 @@ class Extractor(object):
                 logging.debug("[*] Doesn't have Ioctl calls")
                 return None, None
             else:
+                #store commands in a file named ioctl_commands.txt in the corresponding out/<target> folder 
                 output_file_path = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1] + "/"
                 if not Utils.dir_exists(output_file_path, False):
                     os.makedirs(output_file_path)
