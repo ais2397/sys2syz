@@ -1,10 +1,12 @@
+# Module : Description.py 
+# Description : Contains functions which generate descriptions.
+from core.Utils import *
+
 import xml.etree.ElementTree as ET
 import re
 import os
 import string
 import logging
-
-from core.Utils import *
 
 type_dict = {
     "unsigned char": "int8",
@@ -64,7 +66,7 @@ class Descriptions(object):
                     if child.get("id") == find_id:
                         return child
         except Exception as e:
-            log.error(e)
+            logging.error(e)
             logging.debug("[*] Issue in resolving: %s", find_id)
         
     def get_id(self, root, find_ident):
@@ -93,22 +95,23 @@ class Descriptions(object):
         """
 
         try:
+            #for structures
             if child.get("type") == "struct":
                 logging.debug("TO-DO: struct")
                 return self.build_struct(child)
-
+            #for unions
             elif child.get("type") == "union":
                 logging.debug("TO-DO: union")
                 return self.build_union(child)
-
+            #for functions
             elif child.get("type") == "function":
                 logging.debug("TO-DO: function")
                 return
-
+            #for pointers
             elif child.get("type") == "pointer":
                 logging.debug("TO-DO: pointer")
                 return self.build_ptr(child)
-
+            #for arrays
             elif child.get("type") == "array":
                 logging.debug("TO-DO: array")
                 desc_str = "array"
@@ -120,13 +123,13 @@ class Descriptions(object):
                 size_str = child.get('array-size')
                 desc_str += "[" + type_str + ", " + size_str + "]"
                 return desc_str
-
+            #for enums
             elif child.get("type") == "enum":
                 logging.debug("TO-DO: enum")
                 desc_str = "flags["
                 desc_str += child.get("ident")+"_flags]"
                 return desc_str
-
+            #for nodes
             elif "base-type-builtin" in child.keys():
                 logging.debug("TO-DO: builtin-type")
                 return type_dict.get(child.get("base-type-builtin"))
@@ -147,10 +150,12 @@ class Descriptions(object):
         try:
             logging.debug("[*] Building pointer")
             name = child.get("ident")
+            #get type of pointer
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
+                #check if pointer stores char type value
                 if base_type =="void" or base_type == "char":
-                    ptr_str = "buf[" + self.ptr_dir + "]"
+                    ptr_str = "buffer[" + self.ptr_dir + "]"
                 else:
                     ptr_str = "ptr[" + self.ptr_dir + ", " + str(type_dict[child.get("base-type-builtin")]) + "]"
             else:
@@ -168,16 +173,35 @@ class Descriptions(object):
         """
 
         try:
+            len_regx = re.compile("(.+)len")
             logging.debug("[*] Building struct")
             name = child.get("ident")
+
             if name not in self.structs_and_unions.keys():
-                elements = []
+                elements = {}
+                #get the type of each element in struct
                 for element in child:
                     elem_type = self.get_type(element)
+                    elem_ident = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type") 
-                    elements.append(element.get("ident") + "\t" + elem_type)
-                    self.structs_and_unions[name] = "{\n" + "\n".join(elements) + "\n}\n"
+                    elements[element.get("ident")] = elem_type
+
+                #check for the elements which store length of an array or buffer
+                for element in elements:
+                    len_grp = len_regx.match(element)
+                    if len_grp is not None:
+                        buf_name = len_grp.groups()[0]
+                        matches = [search_str for search_str in elements if re.search(buf_name, search_str)] 
+                        for i in matches:
+                            if i is not element:
+                                elem_type = "len[" + i + ", " + elements[element] + "]"
+                                elements[element] = elem_type
+                #format struct
+                element_str = ""
+                for element in elements: 
+                    element_str += element + "\t" + elements[element] + "\n"
+                self.structs_and_unions[name] = " {\n" + element_str + "}\n"
             return str(name)
         except Exception as e:
             logging.error(e)
@@ -190,16 +214,34 @@ class Descriptions(object):
         """
 
         try:
+            len_regx = re.compile("(.+)len")
             logging.debug("[*] Building union")
             name = child.get("ident")
             if name not in self.structs_and_unions:
-                elements = []
+                elements = {}
+                #get the type of each element in union
                 for element in child:
                     elem_type = self.get_type(element)
                     if elem_type == None:
                         elem_type = element.get("type") 
-                    elements.append(element.get("ident") + "\t" + elem_type)
-                    self.structs_and_unions[name] = "[\n" + "\n".join(elements) + "\n]\n"
+                    elements[element.get("ident")] = elem_type
+                
+                #check for the elements which store length of an array or buffer
+                for element in elements:
+                    len_grp = len_regx.match(element)
+                    if len_grp is not None:
+                        buf_name = len_grp.groups()[0]
+                        matches = [search_str for search_str in elements if re.search(buf_name, search_str)] 
+                        for i in matches:
+                            if i is not element:
+                                elem_type = "len[" + i + ", " + elements[element] + "]"
+                                elements[element] = elem_type
+
+                #format union
+                element_str = ""
+                for element in elements: 
+                    element_str += element + "\t" + elements[element] + "\n"
+                self.structs_and_unions[name] = " [\n" + element_str +"]\n"
             return str(name)
         except Exception as e:
             logging.error(e)
@@ -215,7 +257,7 @@ class Descriptions(object):
         try:
             structs = ""
             for key in self.structs_and_unions:
-                structs += (key + " " + self.structs_and_unions[key] +"\n")
+                structs += (str(key) + str(self.structs_and_unions[key]) + "\n")
             return structs
         except Exception as e:
             logging.error(e)
@@ -268,8 +310,8 @@ class Descriptions(object):
             struct_descriptions = str(self.pretty_structs())
             
             if func_descriptions is not None:
-        
-                desc_buf = "\n\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions])
+                desc_buf = "#Autogenerated by sys2syz\n"
+                desc_buf += "\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions])
                 output_file_path = os.getcwd() + "/out/" + "dev_" + dev_name + ".txt"
                 output_file = open( output_file_path, "w")
                 output_file.write(desc_buf)
@@ -284,8 +326,9 @@ class Descriptions(object):
     def run(self, extracted_file):
         """
         Parses arguments and structures for ioctl calls
+        :return: True
         """
-        
+
         try:
             with open(extracted_file) as ioctl_commands:
                 commands = ioctl_commands.readlines()
@@ -299,11 +342,8 @@ class Descriptions(object):
                         else:
                             raw_arg = self.get_id(self.get_root(argument_name), argument_name)
                             if raw_arg is not None:
-                                arg_type = raw_arg[1].get("type")
                                 arg_str = raw_arg[0]
-                                if arg_type in types:
-                                    arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
-                                
+                                arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
                                 self.arguments[cmd] = arg_str
                     else:
                         self.arguments[cmd] = None

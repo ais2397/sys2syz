@@ -74,9 +74,9 @@ class Bear(object):
                             curr_args[i] = cura[0:cn+1] + "'" + cura[cn+1:]
                             curr_args[i] = curr_args[i] + "'"
                         i += 1
-                    curr_args[0] += (" -E")
+                    curr_args[0] += (" -fdirectives-only -E")
                     work_dir = curr_command["directory"]
-                    output_file = output_path + "/"+ src_file.split("/")[-1] + ".preprocessed" 
+                    output_file = output_path + "/"+ src_file.split("/")[-1].split(".")[0] + ".i" 
                     logging.debug("[*] Extracting commands for " + src_file.split("/")[-1] )
                     commands.append(CompilationCommand(curr_args, work_dir, src_file, output_file))
             logging.debug("[*] Commands Extracted")
