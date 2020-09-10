@@ -7,6 +7,7 @@ import re
 import os
 import string
 import logging
+import collections
 
 type_dict = {
     "unsigned char": "int8",
@@ -23,13 +24,16 @@ type_dict = {
 types = ["struct", "union", "pointer"]
 
 class Descriptions(object):
-    def __init__(self,target):
+    def __init__(self,target, defined_flags):
         self.target = target
+        self.defined_flags = defined_flags
         self.trees = []
+        self.flags = []
         self.structs_and_unions = {}
         self.arguments = {}
         self.ptr_dir = None
         self.current_root = None
+        MacroDetails = collections.namedtuple("MacroDetails", ["struct_name", "element_name", "macros"])
         for file in (os.listdir(self.target)):
             tree = ET.parse(self.target+file)
             self.trees.append(tree)
@@ -128,11 +132,11 @@ class Descriptions(object):
                 logging.debug("TO-DO: enum")
                 desc_str = "flags["
                 desc_str += child.get("ident")+"_flags]"
-                return desc_str
+                return self.build_enums
             #for nodes
             elif "base-type-builtin" in child.keys():
                 logging.debug("TO-DO: builtin-type")
-                return type_dict.get(child.get("base-type-builtin"))
+                return self.build_basetype(child)
             else:
                 logging.debug("TO-DO: base-type")
                 root = self.resolve_id(self.current_root, child.get("base-type"))
@@ -140,6 +144,31 @@ class Descriptions(object):
         except Exception as e:
             logging.error(e)
             logging.debug("Error occured while fetching the type")
+
+    def check_flag(self, name):
+        print(self.defined_flags)
+        return 1
+
+    def build_basetype(self, child):
+        child_type = type_dict.get(child.get("base-type-builtin"))
+        if "int" in child_type:
+            print(child_type + ": " + child.get("ident"))
+            '''if check_flag(name):
+                desc_str = "flags[" + name + "_flags]"'''
+        return child_type
+
+    def build_enums(self, child):
+        try:
+            name = child.get("ident")
+            if check_flag(name):
+                desc_str = "flags[" + name + "_flags]"
+            else:
+                desc_str = "flags[" + name + "_flags]"
+                flags_undefined.append(desc_str)
+            return desc_str
+        except Exception as e:
+            logging.error(e)
+            print("Error occured while resolving enum")
 
     def build_ptr(self, child):
         """
@@ -297,6 +326,8 @@ class Descriptions(object):
         """
 
         try:
+            print(self.defined_flags)
+            print(self.defined_flags[0][2])
             includes = ""
             for file in header_files:
                 includes += "include <" + file + ">\n"

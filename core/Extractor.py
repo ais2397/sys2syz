@@ -5,10 +5,12 @@ from core.Utils import *
 import logging
 import os
 import re
+import collections
 
 class Extractor(object):
     def __init__(self, target):
         self.target = target
+        self.files = os.listdir(self.target)
 
     def get_ioctls(self, header_files):
         """
@@ -81,12 +83,68 @@ class Extractor(object):
         Find all the header files in device folder
         :return: list of header files
         """
+        try:
+            header_files = []
+            for filename in self.files:
+                if filename.endswith('.h'):
+                    header_files.append(filename)
+            return header_files
+        except Exception as e:
+            logging.exception(e)
+            print("Error while fetching header files")
+
+
+    def fetch_flags(self, header_files):
+        try:
+            macros_defined = []
+            #del_buf = open("del_buf", "w")
+            undefined_macros = []
+            MacroDetails = collections.namedtuple("MacroDetails", ["struct_name", "element_name", "macros"])
+            struct_str = re.compile("struct\s*([a-z0-9_ ]*)\s*{.*\n(\t*\s*[a-z0-9]*\s*\t*[A-Za-z0-9,;\s*-\.\\/\*\\\#\{\(\)\[\]_]*)\n};")
+            element_str = re.compile("([a-zA-Z]+);((?!#define).)*\n((#define.*\n*)+)")
+            macros_str = re.compile("#define\s*\t*([A-Z_]*).*")
+            #"\t[a-z_]*\s*\t*([a-zA-Z]*);.*\n#define\s*\t*[A-Z_]*\s*\t*[0-9x\t]*.*\n*\")
+            target = self.target + "/"
+            for file in header_files:
+                with open(target+file) as fd:
+                    print(file)            
+                    logging.info("target file opened " + target + file)
+                    buf = fd.read()
+                    #del_buf.write(file + "\n--------------\n" + buf)
+                    undefined_macros.extend(macros_str.findall(buf))
+                    struct_details = re.findall(struct_str, buf)
+                    #print(buf)
+                    logging.debug("structs found: "+ str(struct_details))
+                    for struct in struct_details:                    
+                        #print("-"*50)
+                        print(str(struct[0]))# + ": \n" + struct[1])
+                        elements_details = element_str.findall(struct[1])
+                        #print(elements_details)
+                        if elements_details is not None:
+                            for element in elements_details:
+                                #print("[*] " + element[2])
+                                macros = self.parse_macros(element[2])
+                                macros_defined.append(MacroDetails(struct[0], element[0], macros))
+                                undefined_macros = list(set(undefined_macros)-set(macros))
+            #del_buf.close()
+            print(macros_defined)
+            print(undefined_macros)
+            return macros_defined, undefined_macros
+        except Exception as e:
+            logging.error(e)
+            print("Fails to fetch flags")
         
-        header_files = []
-        for filename in os.listdir(self.target):
-            if filename.endswith('.h'):
-                header_files.append(filename)
-        return header_files    
+
+    def parse_macros(self, macro_details):
+        macro_groups = [] 
+        macros_array = macro_details.split("\n")
+        #print("macros" + str(macros_array))
+        macros = re.compile("#define\s*\t*([A-Z_]*).*")
+        for macro in macros_array:
+            macro_match = macros.match(macro)
+            if macro_match is not None:
+                macro_groups.append(macro_match.groups()[0])
+        return macro_groups
 
     def get_syscalls(self, source):
         # Get the syscall args
