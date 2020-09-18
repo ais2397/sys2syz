@@ -1,5 +1,4 @@
 # Sys2Syz
->  This tool is developed for the NetBSD Operating system and is done as a part of Google Summer of Code 2020 project with the NetBSD Foundation.
 
 ## Overview
 
