@@ -7,7 +7,8 @@ import re
 import os
 import string
 import logging
-import collections
+import pylcs
+import py_common_subseq as common_sub
 
 type_dict = {
     "unsigned char": "int8",
@@ -160,12 +161,28 @@ class Descriptions(object):
                     flags.append(child.get("ident"))
             if len(flags) > 0:
                 self.gflags[flg_name] = ", ".join(flags)
+                self.defined_flags = list(set(self.defined_flags)-set(flags))
             else:
                 flg_name = None               
             return flg_name
         except Exception as e:
             logging.error(e)
             print("Error in grabbing flags")
+    
+    def possible_flags(self, strct_name, elements):
+        try:
+            small_flg =[i.lower() for i in self.defined_flags]
+            len_sub = pylcs.lcs_of_list(strct_name, small_flg)
+            max_len = max(len_sub)
+            print("Predicted flags for: " + strct_name)
+            for i in range(len(len_sub)):
+                if len_sub[i] == max_len:
+                    if any(substring in small_flg[i] for substring in strct_name.split("_")):
+                        print(self.defined_flags[i])
+            
+        except Exception as e:
+            logging.error(e)
+            print("Error in searching for potential flags for" + strct_name)
 
     def build_basetype(self, child):
         child_type = type_dict.get(child.get("base-type-builtin"))
@@ -223,35 +240,30 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             logging.debug("[*] Building struct")
             name = child.get("ident")
-            avoid_types = ["struct", "union"]
-            print("[*] " + name )
             if name not in self.structs_and_unions.keys():
                 elements = {}
                 prev_name = "nill"
                 strct_strt = int(child.get("start-line"))
                 strct_end = int(child.get("end-line"))
                 end_line = strct_strt
-                #get the type of each element in union
+                #get the type of each element in struct
                 for element in child:
                     elem_type = self.get_type(element)
                     start_line = int(element.get("start-line"))
-                    #check for flags defined in structs scope
+                    #check for flags defined in union's scope
                     if (start_line - end_line) > 1:
-                        print("Entering get_flag diff" + str((end_line - start_line)))
                         elem_type = self.get_flags(name, prev_name, end_line, start_line)
-                    print(prev_name + ": "+ str(end_line) + ", " + str(start_line))
                     end_line = int(element.get("end-line"))
                     prev_name = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type")
                     elements[prev_name] = elem_type
-                if (strct_end - start_line) > 1 and (elem_type not in avoid_types ):
-                    print("Entering get_flag diff" + str((strct_end - start_line)))
+                if (strct_end - start_line) > 1:
                     temp_type = self.get_flags(name, prev_name, start_line, strct_end)
                     if temp_type is not None:
                         elem_type = temp_type
-                print(prev_name + ": "+ str(start_line) + ", " + str(strct_end))
                 elements[prev_name] = elem_type
+                self.possible_flags(name, elements.keys())
                 print("-"*50)
 
                 #check for the elements which store length of an array or buffer
@@ -272,7 +284,7 @@ class Descriptions(object):
             return str(name)
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while resolving the struct")
+            logging.debug("Error occured while resolving the struct: " + name)
 
     def build_union(self, child):
         """
@@ -284,8 +296,6 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             logging.debug("[*] Building union")
             name = child.get("ident")
-            avoid_types = ["struct", "union"]
-            print(name)
             if name not in self.structs_and_unions.keys():
                 elements = {}
                 prev_name = "nill"
@@ -296,20 +306,20 @@ class Descriptions(object):
                 for element in child:
                     elem_type = self.get_type(element)
                     start_line = int(element.get("start-line"))
-                    if (start_line - end_line) > 1 and (elem_type not in avoid_types ):
-                        print("Entering get_flag diff" + str((end_line - start_line)))
+                    #check for flags defined in union's scope
+                    if (start_line - end_line) > 1:
                         elem_type = self.get_flags(name, prev_name, end_line, start_line)
-                    print(prev_name + ": "+ str(end_line) + ", " + str(start_line))
                     end_line = int(element.get("end-line"))
                     prev_name = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type")
                     elements[prev_name] = elem_type
-                if (strct_end - start_line) > 1 and (elem_type not in avoid_types ):
-                    print("Entering get_flag diff" + str((strct_end - start_line)))
-                    elem_type = self.get_flags(name, prev_name, start_line, strct_end)
-                print(prev_name + ": "+ str(start_line) + ", " + str(strct_end))
+                if (strct_end - start_line) > 1:
+                    temp_type = self.get_flags(name, prev_name, start_line, strct_end)
+                    if temp_type is not None:
+                        elem_type = temp_type
                 elements[prev_name] = elem_type
+                self.possible_flags(name, elements.keys())
                 print("-"*50)
                 
                 #check for the elements which store length of an array or buffer
@@ -341,6 +351,8 @@ class Descriptions(object):
         """
 
         try:
+            print(self.gflags)
+            print(self.defined_flags)
             structs = ""
             for key in self.structs_and_unions:
                 structs += (str(key) + str(self.structs_and_unions[key]) + "\n")
@@ -419,6 +431,7 @@ class Descriptions(object):
         """
 
         try:
+            print(self.defined_flags)
             with open(extracted_file) as ioctl_commands:
                 commands = ioctl_commands.readlines()
                 for command in commands:

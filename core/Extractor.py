@@ -11,6 +11,7 @@ class Extractor(object):
     def __init__(self, target):
         self.target = target
         self.files = os.listdir(self.target)
+        self.command_macros = []
 
     def get_ioctls(self, header_files):
         """
@@ -56,6 +57,7 @@ class Extractor(object):
                         command_desc = ["inout", command, description]
                         command_file.append(file)
                     if command_desc:
+                        self.command_macros.append(command)
                         ioctl_commands.append(command_desc)
                         command_descs += ", ".join(command_desc) + "\n"
                         command_file.append(file)
@@ -111,7 +113,7 @@ class Extractor(object):
                     buf = fd.read()
                     #del_buf.write(file + "\n--------------\n" + buf)
                     undefined_macros.extend(macros.findall(buf))                    
-            return undefined_macros
+            return list(set(undefined_macros)-set(self.command_macros))
         except Exception as e:
             logging.error(e)
             print("Fails to fetch flags")
