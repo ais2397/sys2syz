@@ -47,7 +47,7 @@ def main():
     extractor = Extractor(target)
     header_files = extractor.get_header_files()
     ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
-    defined_macros, undefined_macros = extractor.fetch_flags(cmd_header_files)
+    undefined_macros = extractor.fetch_flags(cmd_header_files)
     logging.info("[+] Extracted ioctl commands")
 
     if ioctl_cmd_file is not None:
@@ -60,7 +60,7 @@ def main():
             c2xml = C2xml(target)
             out_dir = c2xml.run_c2xml()
             logging.info("[+] Created XML files")
-            descriptions = Descriptions(out_dir, defined_macros)
+            descriptions = Descriptions(out_dir, undefined_macros)
             descriptions.run(ioctl_cmd_file)
             output_path = descriptions.make_file(cmd_header_files)
             if Utils.file_exists(output_path, True):

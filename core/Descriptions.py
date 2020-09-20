@@ -28,12 +28,11 @@ class Descriptions(object):
         self.target = target
         self.defined_flags = defined_flags
         self.trees = []
-        self.flags = []
+        self.gflags = {}
         self.structs_and_unions = {}
         self.arguments = {}
         self.ptr_dir = None
         self.current_root = None
-        MacroDetails = collections.namedtuple("MacroDetails", ["struct_name", "element_name", "macros"])
         for file in (os.listdir(self.target)):
             tree = ET.parse(self.target+file)
             self.trees.append(tree)
@@ -149,11 +148,30 @@ class Descriptions(object):
         print(self.defined_flags)
         return 1
 
+    def get_flags(self, strct_name, name, strt_line, end_line):
+        try:
+            flg_name = name + "_flag"
+            if flg_name in self.gflags:
+                flg_name = name + "_" + strct_name + "_flag"
+            flags = []
+            for child in self.current_root:
+                if (int(child.get("start-line"))in range(strt_line + 1, end_line)) and (child.get("type")=="macro"):
+                    logging.debug("[*] Found flag")
+                    flags.append(child.get("ident"))
+            if len(flags) > 0:
+                self.gflags[flg_name] = ", ".join(flags)
+            else:
+                flg_name = None               
+            return flg_name
+        except Exception as e:
+            logging.error(e)
+            print("Error in grabbing flags")
+
     def build_basetype(self, child):
         child_type = type_dict.get(child.get("base-type-builtin"))
-        if "int" in child_type:
-            print(child_type + ": " + child.get("ident"))
-            '''if check_flag(name):
+        '''if "int" in child_type:
+            #print(child_type + ": " + child.get("ident"))
+            if check_flag(name):
                 desc_str = "flags[" + name + "_flags]"'''
         return child_type
 
@@ -205,16 +223,36 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             logging.debug("[*] Building struct")
             name = child.get("ident")
-
+            avoid_types = ["struct", "union"]
+            print("[*] " + name )
             if name not in self.structs_and_unions.keys():
                 elements = {}
-                #get the type of each element in struct
+                prev_name = "nill"
+                strct_strt = int(child.get("start-line"))
+                strct_end = int(child.get("end-line"))
+                end_line = strct_strt
+                #get the type of each element in union
                 for element in child:
                     elem_type = self.get_type(element)
-                    elem_ident = element.get("ident")
+                    start_line = int(element.get("start-line"))
+                    #check for flags defined in structs scope
+                    if (start_line - end_line) > 1:
+                        print("Entering get_flag diff" + str((end_line - start_line)))
+                        elem_type = self.get_flags(name, prev_name, end_line, start_line)
+                    print(prev_name + ": "+ str(end_line) + ", " + str(start_line))
+                    end_line = int(element.get("end-line"))
+                    prev_name = element.get("ident")
                     if elem_type == None:
-                        elem_type = element.get("type") 
-                    elements[element.get("ident")] = elem_type
+                        elem_type = element.get("type")
+                    elements[prev_name] = elem_type
+                if (strct_end - start_line) > 1 and (elem_type not in avoid_types ):
+                    print("Entering get_flag diff" + str((strct_end - start_line)))
+                    temp_type = self.get_flags(name, prev_name, start_line, strct_end)
+                    if temp_type is not None:
+                        elem_type = temp_type
+                print(prev_name + ": "+ str(start_line) + ", " + str(strct_end))
+                elements[prev_name] = elem_type
+                print("-"*50)
 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -246,14 +284,33 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             logging.debug("[*] Building union")
             name = child.get("ident")
-            if name not in self.structs_and_unions:
+            avoid_types = ["struct", "union"]
+            print(name)
+            if name not in self.structs_and_unions.keys():
                 elements = {}
+                prev_name = "nill"
+                strct_strt = int(child.get("start-line"))
+                strct_end = int(child.get("end-line"))
+                end_line = strct_strt
                 #get the type of each element in union
                 for element in child:
                     elem_type = self.get_type(element)
+                    start_line = int(element.get("start-line"))
+                    if (start_line - end_line) > 1 and (elem_type not in avoid_types ):
+                        print("Entering get_flag diff" + str((end_line - start_line)))
+                        elem_type = self.get_flags(name, prev_name, end_line, start_line)
+                    print(prev_name + ": "+ str(end_line) + ", " + str(start_line))
+                    end_line = int(element.get("end-line"))
+                    prev_name = element.get("ident")
                     if elem_type == None:
-                        elem_type = element.get("type") 
-                    elements[element.get("ident")] = elem_type
+                        elem_type = element.get("type")
+                    elements[prev_name] = elem_type
+                if (strct_end - start_line) > 1 and (elem_type not in avoid_types ):
+                    print("Entering get_flag diff" + str((strct_end - start_line)))
+                    elem_type = self.get_flags(name, prev_name, start_line, strct_end)
+                print(prev_name + ": "+ str(start_line) + ", " + str(strct_end))
+                elements[prev_name] = elem_type
+                print("-"*50)
                 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -326,9 +383,8 @@ class Descriptions(object):
         """
 
         try:
-            print(self.defined_flags)
-            print(self.defined_flags[0][2])
             includes = ""
+            flags_defn = ""
             for file in header_files:
                 includes += "include <" + file + ">\n"
             dev_name = self.target.split("/")[-3]
@@ -339,10 +395,12 @@ class Descriptions(object):
             open_desc += "id intptr, flags flags[open_flags]) fd_" + dev_name + "\n"
             func_descriptions = str(self.pretty_ioctl(fd_str))
             struct_descriptions = str(self.pretty_structs())
-            
+            for flg_name in self.gflags:
+                flags_defn += flg_name + " = " + self.gflags[flg_name] + "\n"
+
             if func_descriptions is not None:
                 desc_buf = "#Autogenerated by sys2syz\n"
-                desc_buf += "\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions])
+                desc_buf += "\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions, flags_defn])
                 output_file_path = os.getcwd() + "/out/" + "dev_" + dev_name + ".txt"
                 output_file = open( output_file_path, "w")
                 output_file.write(desc_buf)
