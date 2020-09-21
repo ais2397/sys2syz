@@ -3,6 +3,7 @@
 from core.Utils import *
 
 import logging
+from os.path import join
 import os
 import re
 import collections
@@ -102,18 +103,47 @@ class Extractor(object):
         :return:
         """
         try:
-            macros_defined = []
-            #del_buf = open("del_buf", "w")
-            undefined_macros = []
+            # dictionary to sort out the different macros
+            all_macros = dict()
+
             macros = re.compile("#define\s*\t*([A-Z_0-9]*)\t*\s*.*")
-            target = self.target + "/"
             for file in header_files:
-                with open(target+file) as fd:
-                    logging.info("target file opened " + target + file)
-                    buf = fd.read()
-                    #del_buf.write(file + "\n--------------\n" + buf)
-                    undefined_macros.extend(macros.findall(buf))                    
-            return list(set(undefined_macros)-set(self.command_macros))
+                with open(join(self.target, file)) as fd:
+                    logging.info("target file opened " + join(self.target, file))
+                    # placeholders during iteration
+                    prevline = None
+                    currset = None
+                    currset_start = None
+                    # to hold current file macros
+                    curr_file_macros = []
+                    # Iterate through all the lines in the file
+                    for linenum, line in enumerate(fd.readlines()):
+                        mobj = macros.match(line)
+                        if mobj:
+                            # check if for new set or old set
+                            define_new_set = False
+                            if not prevline:
+                                prevline = linenum
+                                define_new_set = True
+                            else:
+                                if linenum - prevline != 1:
+                                    define_new_set = True
+                            # if we need to define a new set append the older one if exists
+                            # and then create a new one
+                            if define_new_set:
+                                if currset:
+                                    curr_file_macros.append((currset, currset_start, prevline))
+                                currset = []
+                                currset_start = linenum
+                            
+                            # Append the set to the old one
+                            currset.append(mobj.group(1))
+                            prevline = linenum
+
+                    all_macros[file] = curr_file_macros
+            
+            print(all_macros)
+            return all_macros
         except Exception as e:
             logging.error(e)
             print("Fails to fetch flags")
