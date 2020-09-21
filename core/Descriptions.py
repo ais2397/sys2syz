@@ -149,7 +149,7 @@ class Descriptions(object):
         print(self.defined_flags)
         return 1
 
-    def get_flags(self, strct_name, name, strt_line, end_line):
+    def instruct_flags(self, strct_name, name, strt_line, end_line):
         try:
             flg_name = name + "_flag"
             if flg_name in self.gflags:
@@ -157,7 +157,7 @@ class Descriptions(object):
             flags = []
             for child in self.current_root:
                 if (int(child.get("start-line"))in range(strt_line + 1, end_line)) and (child.get("type")=="macro"):
-                    logging.debug("[*] Found flag")
+                    logging.debug("[*] Found instruct flags")
                     flags.append(child.get("ident"))
             if len(flags) > 0:
                 self.gflags[flg_name] = ", ".join(flags)
@@ -169,20 +169,53 @@ class Descriptions(object):
             logging.error(e)
             print("Error in grabbing flags")
     
-    def possible_flags(self, strct_name, elements):
+    def possible_flags(self, strct_name, elements=None):
         try:
             small_flg =[i.lower() for i in self.defined_flags]
             len_sub = pylcs.lcs_of_list(strct_name, small_flg)
             max_len = max(len_sub)
-            print("Predicted flags for: " + strct_name)
+            print("[-] Predicted flags for: " + strct_name)
             for i in range(len(len_sub)):
+                macro = self.defined_flags[i]
                 if len_sub[i] == max_len:
                     if any(substring in small_flg[i] for substring in strct_name.split("_")):
                         print(self.defined_flags[i])
-            
+            print("-"*50)
         except Exception as e:
             logging.error(e)
             print("Error in searching for potential flags for" + strct_name)
+
+    def find_flags(self, name, elements, start, end):
+        try:
+            end+=1
+            flags=[]
+            logging.debug("[+] Finding flags in vicinity for " + name )
+            '''max_start = 0
+            min_end = 1000000000
+            flags = []
+            for child in self.current_root:
+                #child_start = int(child.get("start-line"))
+                child_end = int(child.get("start-line"))
+                if (child_start < start) and (child_start > max_start):
+                    max_start = child.get("start-line")
+                if (child_end > end) and (child_end < min_end):
+                    min_end = child.get("end-line")'''
+            while(1):
+                for child in self.current_root:
+                    if int(child.get("start-line")) == end:
+                        if child.get("type")== "macro":
+                            ident = child.get("ident")
+                            if ident in self.defined_flags:
+                                if any(substring in ident.lower() for substring in name.split("_")[1:]):
+                                    flags.append(ident)
+                        else:
+                            if len(flags) > 0 :
+                                print("[-] Found flags in vicinity of " + name + ": " + str(flags))
+                            return
+                end+=1
+        except Exception as e:
+            logging.error(e)
+            print("Error in finding flags present near struct " + name)
 
     def build_basetype(self, child):
         child_type = type_dict.get(child.get("base-type-builtin"))
@@ -252,19 +285,19 @@ class Descriptions(object):
                     start_line = int(element.get("start-line"))
                     #check for flags defined in union's scope
                     if (start_line - end_line) > 1:
-                        elem_type = self.get_flags(name, prev_name, end_line, start_line)
+                        elem_type = self.instruct_flags(name, prev_name, end_line, start_line)
                     end_line = int(element.get("end-line"))
                     prev_name = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type")
                     elements[prev_name] = elem_type
                 if (strct_end - start_line) > 1:
-                    temp_type = self.get_flags(name, prev_name, start_line, strct_end)
+                    temp_type = self.instruct_flags(name, prev_name, start_line, strct_end)
                     if temp_type is not None:
                         elem_type = temp_type
                 elements[prev_name] = elem_type
-                self.possible_flags(name, elements.keys())
-                print("-"*50)
+                #get flags in vicinity of struct
+                self.find_flags(name, elements.keys(), strct_strt, strct_end)
 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -308,19 +341,20 @@ class Descriptions(object):
                     start_line = int(element.get("start-line"))
                     #check for flags defined in union's scope
                     if (start_line - end_line) > 1:
-                        elem_type = self.get_flags(name, prev_name, end_line, start_line)
+                        elem_type = self.instruct_flags(name, prev_name, end_line, start_line)
                     end_line = int(element.get("end-line"))
                     prev_name = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type")
                     elements[prev_name] = elem_type
                 if (strct_end - start_line) > 1:
-                    temp_type = self.get_flags(name, prev_name, start_line, strct_end)
+                    temp_type = self.instruct_flags(name, prev_name, start_line, strct_end)
                     if temp_type is not None:
                         elem_type = temp_type
                 elements[prev_name] = elem_type
-                self.possible_flags(name, elements.keys())
-                print("-"*50)
+                #get flags in vicinity of union
+                self.find_flags(name, elements.keys(), strct_strt, strct_end)
+                #self.possible_flags(name, elements.keys())
                 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -351,10 +385,10 @@ class Descriptions(object):
         """
 
         try:
-            print(self.gflags)
-            print(self.defined_flags)
+            print("="*10 + "Predicting flags" + "="*10)
             structs = ""
             for key in self.structs_and_unions:
+                self.possible_flags(key)
                 structs += (str(key) + str(self.structs_and_unions[key]) + "\n")
             return structs
         except Exception as e:
@@ -431,7 +465,6 @@ class Descriptions(object):
         """
 
         try:
-            print(self.defined_flags)
             with open(extracted_file) as ioctl_commands:
                 commands = ioctl_commands.readlines()
                 for command in commands:
