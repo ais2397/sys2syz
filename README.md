@@ -102,26 +102,4 @@ Features yet to be implemented:
 - Detection of flag type and extract values of flags
 - Calculating Attributes for structs and unions
 
-## Contributions
-Contributions to NetBSD and Syzkaller as a part of GSoC:
-
-- [Example kernel module](https://nxr.netbsd.org/xref/src/sys/modules/examples/pollpal/) - implements poll(9) 
-
-#### Commits
----
-- Increasing Syzkaller's support for NetBSD syscall fuzzing 
-    - [chflags(2) family](https://github.com/google/syzkaller/pull/1661)
-    - [minherit(2)](https://github.com/google/syzkaller/pull/1680)
-    - [lchmod(2)](https://github.com/google/syzkaller/pull/1687)
-    - [getcwd(2)](https://github.com/google/syzkaller/pull/1725)
-    - [access(2) family](https://github.com/google/syzkaller/pull/1727)
-    - [__getlogin(2),  getsid(2)](https://github.com/google/syzkaller/pull/1728)
-    - [Adding Information and file Management related syscalls](https://github.com/google/syzkaller/pull/1805) includes - mknod manual, utimes manual, wait4, seek, settimer, setpriority, getrusage, clock_settime, nanosleep, getdents, acct
-    - [Adding communication and file Management related syscalls](https://github.com/google/syzkaller/pull/1826) includes - compat_43_ocreat, socket, accept, recvfrom, stat, msync, profil, truncate, dup3
-    - [Common ioctl commands](https://github.com/google/syzkaller/pull/1850)
-    - [stat(2) and statfs(2)](https://github.com/google/syzkaller/pull/1855)
-    - [ksem(2)](https://github.com/google/syzkaller/pull/1972)
-    
-    Starting from 30%, syscall coverage percentage has been increased to 50.35% 
-    
 This tool is developed by Ayushi Sharma
