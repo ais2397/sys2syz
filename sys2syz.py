@@ -55,18 +55,19 @@ def main():
         bear = Bear(target, compile_commands, verbose)
         check_preprocess = bear.parse_compile_commands()
         if check_preprocess:
+            macro_details = extractor.flag_details(undefined_macros)
             logging.info("[+] Preprocessed files have been generated")
             #Generate xml files using c2xml and preprocessed files
             c2xml = C2xml(target)
             out_dir = c2xml.run_c2xml()
             logging.info("[+] Created XML files")
-            descriptions = Descriptions(out_dir, undefined_macros)
+            descriptions = Descriptions(out_dir, macro_details)
             descriptions.run(ioctl_cmd_file)
             output_path = descriptions.make_file(cmd_header_files)
             if Utils.file_exists(output_path, True):
                 logging.info("[+] Description file: " + output_path)
     else:
-        logging.info("[+] Exiting, ioctl call don't exist")
+        logging.info("[+] Exiting, ioctl calls don't exist")
         exit(0)
         
 

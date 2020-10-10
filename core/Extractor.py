@@ -103,50 +103,70 @@ class Extractor(object):
         :return:
         """
         try:
-            # dictionary to sort out the different macros
-            all_macros = dict()
-
+            macros_defined = []
+            #del_buf = open("del_buf", "w")
+            undefined_macros = []
             macros = re.compile("#define\s*\t*([A-Z_0-9]*)\t*\s*.*")
+            target = self.target + "/"
             for file in header_files:
-                with open(join(self.target, file)) as fd:
-                    logging.info("target file opened " + join(self.target, file))
-                    # placeholders during iteration
-                    prevline = None
-                    currset = None
-                    currset_start = None
-                    # to hold current file macros
-                    curr_file_macros = []
-                    # Iterate through all the lines in the file
-                    for linenum, line in enumerate(fd.readlines()):
-                        mobj = macros.match(line)
-                        if mobj:
-                            # check if for new set or old set
-                            define_new_set = False
-                            if not prevline:
-                                prevline = linenum
-                                define_new_set = True
-                            else:
-                                if linenum - prevline != 1:
-                                    define_new_set = True
-                            # if we need to define a new set append the older one if exists
-                            # and then create a new one
-                            if define_new_set:
-                                if currset:
-                                    curr_file_macros.append((currset, currset_start, prevline))
-                                currset = []
-                                currset_start = linenum
-                            
-                            # Append the set to the old one
-                            currset.append(mobj.group(1))
-                            prevline = linenum
+                with open(target+file) as fd:
+                    logging.info("target file opened " + target + file)
+                    buf = fd.read()
+                    #del_buf.write(file + "\n--------------\n" + buf)
+                    undefined_macros.extend(macros.findall(buf))
+            return list(set(undefined_macros)-set(self.command_macros))
+        except Exception as e:
+            logging.error(e)
+            print("Fails to fetch flags")
 
-                    all_macros[file] = curr_file_macros
+    def flag_details(self, flags_defined):
+        try:
+            all_macros = dict()
+            search_dir = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
+            macros = re.compile("#define(\s|\t)+([^_][A-Z_0-9]*)\t*\s*.*")
+            for file in os.listdir(search_dir):
+                if file.endswith(".i"):
+                    with open(join(search_dir, file)) as fd:
+                        logging.debug("target file opened " + join(self.target, file))
+                        # placeholders during iteration
+                        prevline = None
+                        currset = None
+                        currset_start = None
+                        # to hold current file macros
+                        curr_file_macros = []
+                        # Iterate through all the lines in the file
+                        for linenum, line in enumerate(fd.readlines()):
+                            mobj = macros.match(line)
+                            if mobj:
+                                # check if for new set or old set
+                                define_new_set = False
+                                if not prevline:
+                                    prevline = linenum
+                                    define_new_set = True
+                                else:
+                                    if linenum - prevline != 1:
+                                        define_new_set = True
+                                # if we need to define a new set append the older one if exists
+                                # and then create a new one
+                                if define_new_set:
+                                    if currset:
+                                        curr_file_macros.append((currset, currset_start, prevline))
+                                    currset = []
+                                    currset_start = linenum
+
+                                # Append the set to the old one
+                                macro_name = mobj.group(2)
+                                if macro_name in flags_defined:
+                                    currset.append(mobj.group(2))
+                                    prevline = linenum
+    
+                        all_macros[file] = curr_file_macros
             
             print(all_macros)
             return all_macros
         except Exception as e:
             logging.error(e)
-            print("Fails to fetch flags")
+            print("Failed to fetch flag details")
 
     def get_syscalls(self, source):
         # Get the syscall args

@@ -25,18 +25,19 @@ type_dict = {
 types = ["struct", "union", "pointer"]
 
 class Descriptions(object):
-    def __init__(self,target, defined_flags):
+    def __init__(self,target, flag_descriptions):
         self.target = target
-        self.defined_flags = defined_flags
-        self.trees = []
+        self.flag_descriptions = flag_descriptions
+        self.trees = {}
         self.gflags = {}
         self.structs_and_unions = {}
         self.arguments = {}
         self.ptr_dir = None
         self.current_root = None
+        self.current_file = None
         for file in (os.listdir(self.target)):
             tree = ET.parse(self.target+file)
-            self.trees.append(tree)
+            self.trees[tree] = file
 
     def get_root(self, ident_name):
         """
@@ -45,12 +46,13 @@ class Descriptions(object):
         """
 
         try:
-            for tree in self.trees:
+            for tree in self.trees.keys():
                 root = tree.getroot()
                 for child in root:
                     if child.get("ident") == ident_name:
                         logging.debug("[*] Found Root ")
                         self.current_root = root
+                        self.current_file = self.trees[tree].split(".")[0]
                         return root
         except Exception as e:
             logging.error(e)
@@ -132,7 +134,7 @@ class Descriptions(object):
                 logging.debug("TO-DO: enum")
                 desc_str = "flags["
                 desc_str += child.get("ident")+"_flags]"
-                return self.build_enums
+                return self.build_enums(child)
             #for nodes
             elif "base-type-builtin" in child.keys():
                 logging.debug("TO-DO: builtin-type")
@@ -146,7 +148,7 @@ class Descriptions(object):
             logging.debug("Error occured while fetching the type")
 
     def check_flag(self, name):
-        print(self.defined_flags)
+        print(self.flag_descriptions)
         return 1
 
     def instruct_flags(self, strct_name, name, strt_line, end_line):
@@ -154,32 +156,39 @@ class Descriptions(object):
             flg_name = name + "_flag"
             if flg_name in self.gflags:
                 flg_name = name + "_" + strct_name + "_flag"
-            flags = []
-            for child in self.current_root:
-                if (int(child.get("start-line"))in range(strt_line + 1, end_line)) and (child.get("type")=="macro"):
+            print("For " + strct_name + " startline: " +str(strt_line) + ", endline: "+ str(end_line))
+            flags = None
+            print("\n" + self.current_file)
+            print(self.flag_descriptions)
+            for flag_tups in self.flag_descriptions[self.current_file + ".i"]:
+                print(flag_tups)
+                if (int(flag_tups[1])>strt_line-1 and int(flag_tups[2])< end_line-1):
                     logging.debug("[*] Found instruct flags")
-                    flags.append(child.get("ident"))
-            if len(flags) > 0:
+                    print("[*] Found instruct flags")
+                    self.flag_descriptions[self.current_file + ".i"] = list(self.flag_descriptions[self.current_file + ".i"]).remove(flag_tups)
+                    flags = flag_tups[0]
+                    break
+            if flags is not None:
                 self.gflags[flg_name] = ", ".join(flags)
-                self.defined_flags = list(set(self.defined_flags)-set(flags))
+                print("Flags for struct " + strct_name + ": " + flags)
             else:
                 flg_name = None               
             return flg_name
         except Exception as e:
             logging.error(e)
-            print("Error in grabbing flags")
+            logging.debug("Error in grabbing flags")
     
     def possible_flags(self, strct_name, elements=None):
         try:
-            small_flg =[i.lower() for i in self.defined_flags]
+            small_flg =[i.lower() for i in self.flag_descriptions]
             len_sub = pylcs.lcs_of_list(strct_name, small_flg)
             max_len = max(len_sub)
             print("[-] Predicted flags for: " + strct_name)
             for i in range(len(len_sub)):
-                macro = self.defined_flags[i]
+                macro = self.flag_descriptions[i]
                 if len_sub[i] == max_len:
                     if any(substring in small_flg[i] for substring in strct_name.split("_")):
-                        print(self.defined_flags[i])
+                        print(self.flag_descriptions[i])
             print("-"*50)
         except Exception as e:
             logging.error(e)
@@ -205,7 +214,7 @@ class Descriptions(object):
                     if int(child.get("start-line")) == end:
                         if child.get("type")== "macro":
                             ident = child.get("ident")
-                            if ident in self.defined_flags:
+                            if ident in self.flag_descriptions:
                                 if any(substring in ident.lower() for substring in name.split("_")[1:]):
                                     flags.append(ident)
                         else:
@@ -271,8 +280,8 @@ class Descriptions(object):
 
         try:
             len_regx = re.compile("(.+)len")
-            logging.debug("[*] Building struct")
             name = child.get("ident")
+            logging.debug("[*] Building struct " + name)
             if name not in self.structs_and_unions.keys():
                 elements = {}
                 prev_name = "nill"
@@ -388,7 +397,7 @@ class Descriptions(object):
             print("="*10 + "Predicting flags" + "="*10)
             structs = ""
             for key in self.structs_and_unions:
-                self.possible_flags(key)
+                #self.possible_flags(key)
                 structs += (str(key) + str(self.structs_and_unions[key]) + "\n")
             return structs
         except Exception as e:
