@@ -156,21 +156,19 @@ class Descriptions(object):
             flg_name = name + "_flag"
             if flg_name in self.gflags:
                 flg_name = name + "_" + strct_name + "_flag"
-            print("For " + strct_name + " startline: " +str(strt_line) + ", endline: "+ str(end_line))
+            #print("For " + strct_name + " startline: " +str(strt_line) + ", endline: "+ str(end_line))
             flags = None
-            print("\n" + self.current_file)
-            print(self.flag_descriptions)
+            #print(self.flag_descriptions)
             for flag_tups in self.flag_descriptions[self.current_file + ".i"]:
-                print(flag_tups)
+                #print(flag_tups)
                 if (int(flag_tups[1])>strt_line-1 and int(flag_tups[2])< end_line-1):
                     logging.debug("[*] Found instruct flags")
-                    print("[*] Found instruct flags")
-                    self.flag_descriptions[self.current_file + ".i"] = list(self.flag_descriptions[self.current_file + ".i"]).remove(flag_tups)
+                    self.flag_descriptions[self.current_file + ".i"] = self.flag_descriptions[self.current_file + ".i"]
                     flags = flag_tups[0]
                     break
             if flags is not None:
                 self.gflags[flg_name] = ", ".join(flags)
-                print("Flags for struct " + strct_name + ": " + flags)
+                #print("Flags for struct " + strct_name + ": " + str(flags))
             else:
                 flg_name = None               
             return flg_name
@@ -292,14 +290,14 @@ class Descriptions(object):
                 for element in child:
                     elem_type = self.get_type(element)
                     start_line = int(element.get("start-line"))
-                    #check for flags defined in union's scope
+                    #check for flags defined in struct's scope
                     if (start_line - end_line) > 1:
                         elem_type = self.instruct_flags(name, prev_name, end_line, start_line)
                     end_line = int(element.get("end-line"))
                     prev_name = element.get("ident")
                     if elem_type == None:
                         elem_type = element.get("type")
-                    elements[prev_name] = elem_type
+                    elements[prev_name] = str(elem_type)
                 if (strct_end - start_line) > 1:
                     temp_type = self.instruct_flags(name, prev_name, start_line, strct_end)
                     if temp_type is not None:
@@ -394,7 +392,6 @@ class Descriptions(object):
         """
 
         try:
-            print("="*10 + "Predicting flags" + "="*10)
             structs = ""
             for key in self.structs_and_unions:
                 #self.possible_flags(key)

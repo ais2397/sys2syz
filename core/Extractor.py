@@ -161,8 +161,6 @@ class Extractor(object):
                                     prevline = linenum
     
                         all_macros[file] = curr_file_macros
-            
-            print(all_macros)
             return all_macros
         except Exception as e:
             logging.error(e)
