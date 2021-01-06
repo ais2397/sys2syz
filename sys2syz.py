@@ -63,14 +63,18 @@ def main():
         if check_preprocess:
 
             macro_details = extractor.flag_details(undefined_macros)
-            print("Macro details " + "=" * 50 + "\n" + str(macro_details))
             logging.info("[+] Preprocessed files have been generated")
+
             #Generate xml files using c2xml and preprocessed files
             c2xml = C2xml(target)
             out_dir = c2xml.run_c2xml()
             logging.info("[+] Created XML files")
+
+            #Get syz-lang descriptions
             descriptions = Descriptions(out_dir, macro_details)
             descriptions.run(ioctl_cmd_file)
+
+            #Store the descriptions in the syzkaller's syscall description file format
             output_path = descriptions.make_file(cmd_header_files)
             if Utils.file_exists(output_path, True):
                 logging.info("[+] Description file: " + output_path)

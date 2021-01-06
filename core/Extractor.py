@@ -19,6 +19,7 @@ class Extractor(object):
         Fetch the ioctl commands with their arguments and sort them on the basis of their type
         :return:
         """
+        
         try:
             command_descs = ""
             ioctl_commands = []
@@ -80,7 +81,6 @@ class Extractor(object):
                 logging.debug("[*] Ioctl commands stored at " + output_file_path + "ioctl_commands.txt")
                 output_file.close()
                 return str(output_file_path + "ioctl_commands.txt"), set(command_file)
-
         except Exception as e:
             logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
@@ -91,6 +91,7 @@ class Extractor(object):
         Find all the header files in device folder
         :return: list of header files
         """
+
         try:
             header_files = []
             for filename in self.files:
@@ -99,7 +100,6 @@ class Extractor(object):
                 if filename.endswith('.h'):
                     header_files.append(filename)
             return header_files
-
         except Exception as e:
             logging.exception(e)
             print("Error while fetching header files")
@@ -110,6 +110,7 @@ class Extractor(object):
         Fetch all the macros defined
         :return:
         """
+
         try:
             #del_buf = open("del_buf", "w")
             undefined_macros = []
@@ -130,7 +131,6 @@ class Extractor(object):
 
                 #return the macros found, except the IOCTL command macros in header files
             return list(set(undefined_macros)-set(self.command_macros))
-
         except Exception as e:
             logging.error(e)
             print("Fails to fetch flags")
@@ -140,6 +140,7 @@ class Extractor(object):
         Stores the macros within a particular scope of struct etc. in tuples with the corresponding line numbers.
         :return:
         """
+
         try:
             all_macros = dict()
             search_dir = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
@@ -182,7 +183,6 @@ class Extractor(object):
     
                         all_macros[file] = curr_file_macros
             return all_macros
-
         except Exception as e:
             logging.error(e)
             print("Failed to fetch flag details")

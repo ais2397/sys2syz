@@ -35,6 +35,8 @@ class Bear(object):
                 logging.debug("[*] Initialising the environment " + curr_command[1])
                 u = Utils(curr_command[1])
                 logging.debug("[*] Generating " + output_file.split("/")[-1])
+
+                #Run the compilation command
                 u.run_cmd(command + " > " + output_file, doexit = True)
             logging.debug("[*] Generated preprocessed files are at" + output_path)
             return True
@@ -47,7 +49,7 @@ class Bear(object):
         Parses commands recorded by bear
         :return:
         """
-
+        
         CompilationCommand = collections.namedtuple("CompilationCommand", ["curr_args", "work_dir", "src_file", "output_file"])
         commands = []
         try:
@@ -65,8 +67,7 @@ class Bear(object):
                 if driver_path in src_file:
                     curr_args = curr_command["arguments"]
                     i = 0
-                    # convert each string in the argument
-                    # into a python friendly escaped string.
+                    # convert each string in the argument into a python friendly escaped string.
                     while i < len(curr_args):
                         cura = curr_args[i]
                         if '="' in cura:
@@ -86,9 +87,14 @@ class Bear(object):
             print("Error occurred while trying to parse provided json file")
 
 def is_gcc_flag_allowed(curr_flag):
-    # Remove optimization flag
+    """
+    Filter out the optimisation flags
+    :return: True
+    """
+    # Remove optimization flags
     if str(curr_flag)[:2] == "-O":
         return False
+
     # if the flag is invalid
     for curr_in_flag in INVALID_GCC_FLAGS:
         if curr_flag.startswith(curr_in_flag):

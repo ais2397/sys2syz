@@ -41,7 +41,7 @@ class Descriptions(object):
 
     def get_root(self, ident_name):
         """
-        Find root for the tree storing element with its name as ident_name
+        Find root of the tree which stores an element whose ident value is <ident_name>
         :return: root
         """
 
@@ -60,7 +60,7 @@ class Descriptions(object):
 
     def resolve_id(self, root, find_id):
         """
-        Find node having id value same as find_id
+        Find node having id value same as <find_id>, used for finding ident parameter for elements
         :return: node
         """
 
@@ -83,6 +83,8 @@ class Descriptions(object):
 
         try:
             for element in root:
+                #if element is found in the tree call get_type 
+                #function, to find the type of argument for descriptions
                 if element.get("ident") == find_ident:
                     return self.get_type(element), element
                 for child in element:
@@ -102,29 +104,24 @@ class Descriptions(object):
 
         try:
             #print("entered get_type for:" + str(child.attrib))
-            #for structures
+            #for structures: need to define each element present in struct (build_struct)
             if child.get("type") == "struct":
-                #print("TO-DO: struct")
                 logging.debug("TO-DO: struct")
                 return self.build_struct(child)
-            #for unions
+            #for unions: need to define each element present in union (build_union)
             elif child.get("type") == "union":
-                #print("TO-DO: union")
                 logging.debug("TO-DO: union")
                 return self.build_union(child)
             #for functions
             elif child.get("type") == "function":
-                #print("TO-DO: function")
                 logging.debug("TO-DO: function")
                 return
-            #for pointers
+            #for pointers: need to define the pointer type and its direction (build_ptr)
             elif child.get("type") == "pointer":
-                #print("TO-DO: pointer")
                 logging.debug("TO-DO: pointer")
                 return self.build_ptr(child)
-            #for arrays
+            #for arrays, need to define type of elements in array and size of array (if defined)
             elif child.get("type") == "array":
-                #print("TO-DO: array")
                 logging.debug("TO-DO: array")
                 desc_str = "array"
                 if "base-type-builtin" in child.attrib.keys():
@@ -132,28 +129,24 @@ class Descriptions(object):
                 else:
                     root = self.resolve_id(self.current_root, child.get("base-type"))
                     type_str = self.get_type(root)
-                #print("Tyoe str: " + type_str)
                 size_str = child.get('array-size')
-                #print("Size str: " + size_str)
                 desc_str += "[" + type_str + ", " + size_str + "]"
-                #print ("desc str: " + desc_str)
                 return desc_str
-            #for enums
+            #for enums: predict flag for enums (build_enums)
             elif child.get("type") == "enum":
-                #print("TO-DO: enum")
                 logging.debug("TO-DO: enum")
                 desc_str = "flags["
                 desc_str += child.get("ident")+"_flags]"
                 return self.build_enums(child)
-            #for nodes
+            #for nodes: 
+            #builtin types 
             elif "base-type-builtin" in child.keys():
-                #print("TO-DO: builtin-type")
                 return self.build_basetype(child)
+            
+            #custom type
             else:
                 logging.debug("TO-DO: base-type")
-                #print("TO-DO: base-type")
                 root = self.resolve_id(self.current_root, child.get("base-type"))
-                #print(child.get("base-type"))
                 return self.get_type(root)
         except Exception as e:
             logging.error(e)
@@ -253,9 +246,7 @@ class Descriptions(object):
     def build_enums(self, child):
         try:
             name = child.get("ident")
-            if check_flag(name):
-                desc_str = "flags[" + name + "_flags]"
-            else:
+            if name:
                 desc_str = "flags[" + name + "_flags]"
                 flags_undefined.append(desc_str)
             return desc_str
@@ -272,14 +263,17 @@ class Descriptions(object):
         try:
             logging.debug("[*] Building pointer")
             name = child.get("ident")
-            #get type of pointer
+            #pointer is a builtin type
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
-                #check if pointer stores char type value
+                
+                #check if pointer is buffer type i.e stores char type value
                 if base_type =="void" or base_type == "char":
                     ptr_str = "buffer[" + self.ptr_dir + "]"
+
                 else:
                     ptr_str = "ptr[" + self.ptr_dir + ", " + str(type_dict[child.get("base-type-builtin")]) + "]"
+            #pointer is of custom type, call get_type function
             else:
                 x = self.get_type(self.resolve_id(self.current_root,child.get("base-type")))
                 ptr_str = "ptr[" + self.ptr_dir + ", " + x + "]"
@@ -326,7 +320,6 @@ class Descriptions(object):
                     elements[curr_name] = str(elem_type)
                     prev_name = curr_name
                     prev_elem_type = elem_type
-
                 if (strct_end - start_line) > 1:
                     temp_type = self.instruct_flags(name, prev_name, start_line, strct_end, elem_type)
                     if temp_type is not None:
@@ -516,16 +509,24 @@ class Descriptions(object):
                 for command in commands:
                     parsed_command = list(command.split(", "))
                     self.ptr_dir, cmd, argument = parsed_command
+
+                    #for ioctl type is: IOR_, IOW_, IOWR_
                     if self.ptr_dir != "null":
+
+                        #Get the type of argument
                         argument_name = argument.split(" ")[-1].strip()
+
+                        #when argument is of general type as defined in type_dict
                         if argument_name in type_dict.keys():
                             self.arguments[cmd] = type_dict.get(argument_name)
                         else:
                             raw_arg = self.get_id(self.get_root(argument_name), argument_name)
                             if raw_arg is not None:
-                                arg_str = raw_arg[0]
+                    
+                                #define argument description for the ioctl call
                                 arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
                                 self.arguments[cmd] = arg_str
+                    #for IO_ ioctls as they don't have any arguments
                     else:
                         self.arguments[cmd] = None
             return True
