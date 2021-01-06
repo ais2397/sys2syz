@@ -19,7 +19,6 @@ class Extractor(object):
         Fetch the ioctl commands with their arguments and sort them on the basis of their type
         :return:
         """
-
         try:
             command_descs = ""
             ioctl_commands = []
@@ -28,19 +27,22 @@ class Extractor(object):
                 fd = open(self.target + "/" + file, "r")
                 content = fd.readlines()
                 fd.close()
-                io = re.compile("#define\s+(.*)\s+_IO\((.*)\).*")
-                iow = re.compile("#define\s+(.*)\s+_IOW\((.*),\s+(.*),\s+(.*)\).*")
-                ior = re.compile("#define\s+(.*)\s+_IOR\((.*),\s+(.*),\s+(.*)\).*")
-                iowr = re.compile("#define\s+(.*)\s+_IOWR\((.*),\s+(.*),\s+(.*)\).*")
+
+                io = re.compile("#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 
+                iow = re.compile("#define\s+(.*)\s+_IOW\((.*),\s+(.*),\s+(.*)\).*") #regex for IOW_
+                ior = re.compile("#define\s+(.*)\s+_IOR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOR_
+                iowr = re.compile("#define\s+(.*)\s+_IOWR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOWR_
                 for line in content:
                     io_match = io.match(line)
                     iow_match = iow.match(line)
                     ior_match = ior.match(line)
                     iowr_match = iowr.match(line)
+
+                    #array to store: PTR direction of ioctl call argument, command macro , command arguments
                     command_desc = []
                     if io_match:
                         command = io_match.groups()[0].strip()
-                        command_desc = ["null", command, "null"]
+                        command_desc = ["null", command, "null"] 
                         command_file.append(file)
                     elif ior_match:
                         command = ior_match.groups()[0].strip()
@@ -63,10 +65,12 @@ class Extractor(object):
                         command_descs += ", ".join(command_desc) + "\n"
                         command_file.append(file)
                 logging.debug("[*] Analysed " + file)
+
             if command_descs == "":
                 logging.debug("[*] Doesn't have Ioctl calls")
                 return None, None
             else:
+
                 #store commands in a file named ioctl_commands.txt in the corresponding out/<target> folder 
                 output_file_path = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1] + "/"
                 if not Utils.dir_exists(output_file_path, False):
@@ -76,6 +80,7 @@ class Extractor(object):
                 logging.debug("[*] Ioctl commands stored at " + output_file_path + "ioctl_commands.txt")
                 output_file.close()
                 return str(output_file_path + "ioctl_commands.txt"), set(command_file)
+
         except Exception as e:
             logging.exception(e)
             print("Error occurred while Extracting ioctl commands")
@@ -89,9 +94,12 @@ class Extractor(object):
         try:
             header_files = []
             for filename in self.files:
+
+                #store all the filenames ending with ".h" in an array
                 if filename.endswith('.h'):
                     header_files.append(filename)
             return header_files
+
         except Exception as e:
             logging.exception(e)
             print("Error while fetching header files")
@@ -103,23 +111,35 @@ class Extractor(object):
         :return:
         """
         try:
-            macros_defined = []
             #del_buf = open("del_buf", "w")
             undefined_macros = []
+
+            #regex for macros
             macros = re.compile("#define\s*\t*([A-Z_0-9]*)\t*\s*.*")
             target = self.target + "/"
+
+            #read all the files present in target
             for file in header_files:
                 with open(target+file) as fd:
                     logging.info("target file opened " + target + file)
                     buf = fd.read()
                     #del_buf.write(file + "\n--------------\n" + buf)
+
+                    #fetch and store all the macros
                     undefined_macros.extend(macros.findall(buf))
+
+                #return the macros found, except the IOCTL command macros in header files
             return list(set(undefined_macros)-set(self.command_macros))
+
         except Exception as e:
             logging.error(e)
             print("Fails to fetch flags")
 
     def flag_details(self, flags_defined):
+        """
+        Stores the macros within a particular scope of struct etc. in tuples with the corresponding line numbers.
+        :return:
+        """
         try:
             all_macros = dict()
             search_dir = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
@@ -162,6 +182,7 @@ class Extractor(object):
     
                         all_macros[file] = curr_file_macros
             return all_macros
+
         except Exception as e:
             logging.error(e)
             print("Failed to fetch flag details")

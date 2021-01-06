@@ -43,19 +43,27 @@ def main():
     Utils.file_exists(compile_commands, True)
     logging.info("[+] The compile commands is %s", compile_commands)
 
-    #Extract ioctl commands from dev header files
     extractor = Extractor(target)
+    #Fetch all the header files for target device
     header_files = extractor.get_header_files()
+
+    #Extract defined ioctl commands and store the corresponding header file name
     ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
+
+    #Extract the macros/flags 
     undefined_macros = extractor.fetch_flags(cmd_header_files)
     logging.info("[+] Extracted ioctl commands")
 
     if ioctl_cmd_file is not None:
     #Generate preprocessed files
         bear = Bear(target, compile_commands, verbose)
+        
+        #Format the compilation commands and compile the files in target driver
         check_preprocess = bear.parse_compile_commands()
         if check_preprocess:
+
             macro_details = extractor.flag_details(undefined_macros)
+            print("Macro details " + "=" * 50 + "\n" + str(macro_details))
             logging.info("[+] Preprocessed files have been generated")
             #Generate xml files using c2xml and preprocessed files
             c2xml = C2xml(target)
