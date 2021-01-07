@@ -22,8 +22,6 @@ type_dict = {
     "void": "void"
 }
 
-types = ["struct", "union", "pointer"]
-
 class Descriptions(object):
     def __init__(self,target, flag_descriptions):
         self.target = target
@@ -103,7 +101,6 @@ class Descriptions(object):
         """
 
         try:
-            #print("entered get_type for:" + str(child.attrib))
             #for structures: need to define each element present in struct (build_struct)
             if child.get("type") == "struct":
                 logging.debug("TO-DO: struct")
@@ -141,8 +138,7 @@ class Descriptions(object):
             #for nodes: 
             #builtin types 
             elif "base-type-builtin" in child.keys():
-                return self.build_basetype(child)
-            
+                return type_dict.get(child.get("base-type-builtin"))            
             #custom type
             else:
                 logging.debug("TO-DO: base-type")
@@ -152,23 +148,18 @@ class Descriptions(object):
             logging.error(e)
             logging.debug("Error occured while fetching the type")
 
-    def check_flag(self, name):
-        print(self.flag_descriptions)
-        return 1
-
     def instruct_flags(self, strct_name, name, strt_line, end_line, flg_type):
         try:
             flg_name = name + "_flag"
+            file_name = self.current_file + ".i"
             if flg_name in self.gflags:
                 flg_name = name + "_" + strct_name + "_flag" 
-            #print("For " + strct_name + " startline: " +str(strt_line) + ", endline: "+ str(end_line))
             flags = None
-            #print(self.flag_descriptions)
-            for flag_tups in self.flag_descriptions[self.current_file + ".i"]:
-                #print(flag_tups)
+            for i in range(len(self.flag_descriptions[file_name])):
+                flag_tups = self.flag_descriptions[file_name][i]
                 if (int(flag_tups[1])>strt_line-1 and int(flag_tups[2])< end_line-1):
                     logging.debug("[*] Found instruct flags")
-                    self.flag_descriptions[self.current_file + ".i"] = self.flag_descriptions[self.current_file + ".i"]
+                    del self.flag_descriptions[file_name][i]
                     flags = flag_tups[0]
                     break
             if flags is not None:
@@ -181,26 +172,36 @@ class Descriptions(object):
             logging.error(e)
             logging.debug("Error in grabbing flags")
     
-    def possible_flags(self, strct_name, elements=None):
-        try:
-            small_flg =[i.lower() for i in self.flag_descriptions]
-            len_sub = pylcs.lcs_of_list(strct_name, small_flg)
+    '''def possible_flags(self, strct_name, elements=None):
+        """function to find possible categories of leftover flags
+        """
+        small_flag = []
+        len_sub = []
+        possible_flags = []
+        file = self.current_file + ".i"
+        for i in range(len(self.flag_descriptions[file])):
+            flags = self.flag_descriptions[file][i][0]
+            small_flag.extend([i.lower() for i in flags])
+            len_sub.extend(pylcs.lcs_of_list(strct_name, small_flag))
+            for substring in strct_name.split("_"):
+                print("substring: " + substring)
+                for j in range(len(small_flag)):
+                    if substring in small_flag[j]:
+                        possible_flags.extend(self.flag_descriptions[file][i][0])
             max_len = max(len_sub)
-            print("[-] Predicted flags for: " + strct_name)
-            for i in range(len(len_sub)):
-                macro = self.flag_descriptions[i]
-                if len_sub[i] == max_len:
-                    if any(substring in small_flg[i] for substring in strct_name.split("_")):
-                        print(self.flag_descriptions[i])
-            print("-"*50)
-        except Exception as e:
-            logging.error(e)
-            print("Error in searching for potential flags for" + strct_name)
+            for k in possible_flags:
+                if len(k)==max_len:
+                    print(k)
+
+        print("-"*50)
+        return
+        #except Exception as e:
+         #   logging.error(e)
+          #  print("Error in searching for potential flags for" + strct_name)'''
 
     def find_flags(self, name, elements, start, end):
         try:
-            end+=1
-            flags=[]
+            end+=1            
             logging.debug("[+] Finding flags in vicinity for " + name )
             last_tup=len(self.flag_descriptions[self.current_file+ ".i"])
             '''max_start = 0
@@ -219,12 +220,12 @@ class Descriptions(object):
                         break
                     if flags_tup[1] == end:
                         if any(substring in flg.lower() for flg in flags_tup[0] for substring in name.split("_")[1:]):
-                            print("[-] Found flags in vicinity of " + name + ": " + str(flags_tup[0]))
+                            print("[\033[31;1m ** ] Found flags in vicinity\033[m of " + name + ": " + str(flags_tup[0]))
                             return
                         else:
                             for element in elements:
                                 if any(element in flg.lower() for flg in flags_tup[0]):
-                                    print("[-] Found flags in vicinity of " + name + " for " + element + ": " + str(flags_tup[0]))
+                                    print("[\033[31;1m ** ] Found flags in vicinity\033[m of " + name + " for " + element + ": " + str(flags_tup[0]))
                                     return
                 if end>self.flag_descriptions[self.current_file+ ".i"][last_tup-1][1]:
                     logging.debug("No flag found")
@@ -234,14 +235,6 @@ class Descriptions(object):
         except Exception as e:
             logging.error(e)
             print("Error in finding flags present near struct " + name)
-
-    def build_basetype(self, child):
-        child_type = type_dict.get(child.get("base-type-builtin"))
-        '''if "int" in child_type:
-            #print(child_type + ": " + child.get("ident"))
-            if check_flag(name):
-                desc_str = "flags[" + name + "_flags]"'''
-        return child_type
 
     def build_enums(self, child):
         try:
@@ -289,43 +282,35 @@ class Descriptions(object):
         """
 
         try:
-            len_regx = re.compile("(.+)len")
+            len_regx = re.compile("(.+)len") #regex to check if name of element contains 'len' keyword
             name = child.get("ident")
             logging.debug("[*] Building struct " + name)
-            #print("[*] Building struct " + name)
             if name not in self.structs_and_unions.keys():
                 elements = {}
-                prev_name = "nill"
+                prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
                 strct_end = int(child.get("end-line"))
                 end_line = strct_strt
                 prev_elem_type = None
                 #get the type of each element in struct
                 for element in child:
-                    #print("Building element " + str(element.get("ident")))
                     elem_type = self.get_type(element)
-                    #print("elem_type: "+ str(elem_type))
                     start_line = int(element.get("start-line"))
-                    #check for flags defined in struct's scope
+                    #check for flags defined in struct's scope,
+                    #possibility of flags only when prev_elem_type has 'int' keyword 
                     if ((start_line - end_line) > 1) and ("int" in prev_elem_type):   
-                        #print("Start line"+ str(start_line)+", End line: "+str(end_line))
-                        elem_type_prev = self.instruct_flags(name, prev_name, end_line, start_line, prev_elem_type)
-                        if elem_type_prev is not None:
-                            elements[prev_name]= elem_type_prev
+                        enum_name = self.instruct_flags(name, prev_elem_name, end_line, start_line, prev_elem_type)
+                        if enum_name is not None:
+                            elements[prev_elem_name]= enum_name
                     end_line = int(element.get("end-line"))
                     curr_name = element.get("ident")
-                    '''if elem_type == None:
-                        elem_type = element.get("type")'''
-                        #print ("In struct " + name + ": " + element.get("ident") + ", " +elem_type)
                     elements[curr_name] = str(elem_type)
-                    prev_name = curr_name
+                    prev_elem_name = curr_name
                     prev_elem_type = elem_type
                 if (strct_end - start_line) > 1:
-                    temp_type = self.instruct_flags(name, prev_name, start_line, strct_end, elem_type)
-                    if temp_type is not None:
-                        elements[prev_name] = temp_type
-                #get flags in vicinity of struct
-                self.find_flags(name, elements.keys(), strct_strt, strct_end)
+                    enum_name = self.instruct_flags(name, prev_elem_name, start_line, strct_end, elem_type)
+                    if enum_name is not None:
+                        elements[prev_elem_name] = enum_name
 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -337,12 +322,11 @@ class Descriptions(object):
                             if i is not element:
                                 elem_type = "len[" + i + ", " + elements[element] + "]"
                                 elements[element] = elem_type
-                #format struct
+                #format the struct according to sylang
                 element_str = ""
                 for element in elements: 
                     element_str += element + "\t" + elements[element] + "\n"
-                self.structs_and_unions[name] = " {\n" + element_str + "}\n"
-                #print("returning: " + name)
+                self.structs_and_unions[name] = [" {\n" + element_str + "}\n", child, elements.keys()]
             return str(name)
         except Exception as e:
             logging.error(e)
@@ -358,41 +342,34 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             name = child.get("ident")
             logging.debug("[*] Building union " + name)
-            #print("[*] Building union " + name)
             if name not in self.structs_and_unions.keys():
                 elements = {}
-                prev_name = "nill"
+                prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
                 strct_end = int(child.get("end-line"))
                 end_line = strct_strt
                 prev_elem_type = None
                 #get the type of each element in union
                 for element in child:
-                    #print("Building element " + str(element.get("ident")))
                     elem_type = self.get_type(element)
-                    #print("elem_type: "+ str(elem_type))
                     start_line = int(element.get("start-line"))
                     #check for flags defined in union's scope
-                    if ((start_line - end_line) > 1) and ("int" in prev_elem_type):   
-                        #print("Start line"+ str(start_line)+", End line: "+str(end_line))
-                        elem_type_prev = self.instruct_flags(name, prev_name, end_line, start_line, prev_elem_type)
-                        if elem_type_prev is not None:
-                            elements[prev_name]= elem_type_prev
+                    if ((start_line - end_line) > 1) and ("int" in prev_elem_type):                       
+                        enum_name = self.instruct_flags(name, prev_elem_name, end_line, start_line, prev_elem_type)
+                        if enum_name is not None:
+                            elements[prev_elem_name]= enum_name
                     end_line = int(element.get("end-line"))
                     curr_name = element.get("ident")
-                    '''if elem_type == None:
-                        elem_type = element.get("type")'''
-                        #print ("In union " + name + ": " + element.get("ident") + ", " +elem_type)
                     elements[curr_name] = str(elem_type)
-                    prev_name = curr_name
+                    prev_elem_name = curr_name
                     prev_elem_type = elem_type
 
                 if (strct_end - start_line) > 1:
-                    temp_type = self.instruct_flags(name, prev_name, start_line, strct_end, elem_type)
-                    if temp_type is not None:
-                        elements[prev_name] = temp_type
+                    enum_name = self.instruct_flags(name, prev_elem_name, start_line, strct_end, elem_type)
+                    if enum_name is not None:
+                        elements[prev_elem_name] = enum_name
                 #get flags in vicinity of union
-                self.find_flags(name, elements.keys(), strct_strt, strct_end)
+                
 
                 
                 #check for the elements which store length of an array or buffer
@@ -410,25 +387,33 @@ class Descriptions(object):
                 element_str = ""
                 for element in elements: 
                     element_str += element + "\t" + elements[element] + "\n"
-                self.structs_and_unions[name] = " [\n" + element_str +"]\n"
+                self.structs_and_unions[name] = [" [\n" + element_str +"]\n", child, elements.keys()]
             return str(name)
         except Exception as e:
             logging.error(e)
             logging.debug("Error occured while resolving the union")
 
 
-    def pretty_structs(self):
+    def pretty_structs_unions(self):
         """
         Generates descriptions of structs and unions for syzkaller
         :return:
         """
 
         try:
-            structs = ""
+            pretty = ""
             for key in self.structs_and_unions:
+                elements = self.structs_and_unions[key][0]
+                node = self.structs_and_unions[key][1]
+                element_names = self.structs_and_unions[key][2]                
+                strct_strt = int(node.get("start-line"))
+                strct_end = int(node.get("end-line"))
+                #get flags in vicinity of structs
+                self.find_flags(key, element_names, strct_strt, strct_end)
+                #predictions for uncategorised flags
                 #self.possible_flags(key)
-                structs += (str(key) + str(self.structs_and_unions[key]) + "\n")
-            return structs
+                pretty += (str(key) + str(elements) + "\n")
+            return pretty
         except Exception as e:
             logging.error(e)
             logging.debug("[*] Error in parsing structs")
@@ -478,7 +463,7 @@ class Descriptions(object):
             open_desc += "(dev ptr[in, string[\"/dev/" + dev_name + "\"]], "
             open_desc += "id intptr, flags flags[open_flags]) fd_" + dev_name + "\n"
             func_descriptions = str(self.pretty_ioctl(fd_str))
-            struct_descriptions = str(self.pretty_structs())
+            struct_descriptions = str(self.pretty_structs_unions())
             for flg_name in self.gflags:
                 flags_defn += flg_name + " = " + self.gflags[flg_name] + "\n"
 
@@ -505,7 +490,6 @@ class Descriptions(object):
         try:
             with open(extracted_file) as ioctl_commands:
                 commands = ioctl_commands.readlines()
-                print(self.flag_descriptions)
                 for command in commands:
                     parsed_command = list(command.split(", "))
                     self.ptr_dir, cmd, argument = parsed_command
