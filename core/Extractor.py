@@ -144,7 +144,7 @@ class Extractor(object):
         try:
             all_macros = dict()
             search_dir = os.getcwd() + "/out/preprocessed/" + self.target.split("/")[-1]
-            macros = re.compile("#define(\s|\t)+([^_][A-Z_0-9]*)\t*\s*.*")
+            macros = re.compile("#define(\s|\t)+([A-Z_0-9]*)[\t|\s]+(?!_IOWR|_IOR|_IOW|_IO|\()[0-9]*x?[a-z0-9]*")#define(\s|\t)+([A-Z_0-9]*)[\t\s]+([^_IOWR{][0-9]*)")#define(\s|\t)+([^_][A-Z_0-9]*)\t*\s*.*")
             for file in os.listdir(search_dir):
                 if file.endswith(".i"):
                     with open(join(search_dir, file)) as fd:

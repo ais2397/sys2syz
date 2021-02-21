@@ -2,6 +2,8 @@
 # Description : Contains functions which generate descriptions.
 from core.Utils import *
 
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 import xml.etree.ElementTree as ET
 import re
 import os
@@ -28,7 +30,8 @@ class Descriptions(object):
         self.flag_descriptions = flag_descriptions
         self.trees = {}
         self.gflags = {}
-        self.structs_and_unions = {}
+        self.structs_defs = {}
+        self.union_defs = {}
         self.arguments = {}
         self.ptr_dir = None
         self.current_root = None
@@ -197,12 +200,23 @@ class Descriptions(object):
         return
         #except Exception as e:
          #   logging.error(e)
-          #  print("Error in searching for potential flags for" + strct_name)'''
+          #  print("Error in searching for potential flags for" + strct_name)
+    
+    def possible_flags(self, strct_name):
+        small_flag = []
+        file = self.current_file + ".i"
+        for i in range(len(self.flag_descriptions[file])):
+            flags = self.flag_descriptions[file][i][0]
+            small_flag.extend([i.lower() for i in flags])
+        res = process.extract(strct_name, small_flag)
+        logging.info("Result for " + strct_name + ": " + str(res))'''
+
 
     def find_flags(self, name, elements, start, end):
+        """Predict flags present near a struct"""
         try:
             end+=1            
-            logging.debug("[+] Finding flags in vicinity for " + name )
+            logging.debug("[+] Finding flags in vicinity of " + name )
             last_tup=len(self.flag_descriptions[self.current_file+ ".i"])
             '''max_start = 0
             min_end = 1000000000
@@ -215,17 +229,22 @@ class Descriptions(object):
                 if (child_end > end) and (child_end < min_end):
                     min_end = child.get("end-line")'''
             while(1):
-                for flags_tup in self.flag_descriptions[self.current_file+ ".i"]:
+                for i in range(len(self.flag_descriptions[self.current_file+ ".i"])):
+                    flags_tup = self.flag_descriptions[self.current_file+ ".i"][i]
                     if flags_tup[1]>end:
                         break
                     if flags_tup[1] == end:
                         if any(substring in flg.lower() for flg in flags_tup[0] for substring in name.split("_")[1:]):
-                            print("[\033[31;1m ** ] Found flags in vicinity\033[m of " + name + ": " + str(flags_tup[0]))
+                            print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + ": " + str(flags_tup[0]))
+                            if (self.append_flag()):
+                                self.add_flag(flags_tup[0], name)
                             return
                         else:
                             for element in elements:
                                 if any(element in flg.lower() for flg in flags_tup[0]):
-                                    print("[\033[31;1m ** ] Found flags in vicinity\033[m of " + name + " for " + element + ": " + str(flags_tup[0]))
+                                    print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + " for " + element + ": " + str(flags_tup[0]))
+                                    if (self.append_flag()):
+                                        self.add_flag(flags_tup[0], name, element)
                                     return
                 if end>self.flag_descriptions[self.current_file+ ".i"][last_tup-1][1]:
                     logging.debug("No flag found")
@@ -234,7 +253,34 @@ class Descriptions(object):
                     end+=1
         except Exception as e:
             logging.error(e)
-            print("Error in finding flags present near struct " + name)
+            logging.debug("Error in finding flags present near struct " + name)
+    
+    def append_flag(self):
+        try:
+            if (input("Add the predicted flags? (y/n): ") == "y"):
+                return True
+            return False
+        except Exception as e:
+            logging.error(e)
+            logging.debug("Error in function: append_flag")
+
+    def add_flag(self, flags, strct_name, element = None):
+        try:
+            if element is None:
+                element = input("Enter the element name from " + strct_name + " to modify: ")
+            flag_name = element + "_" + strct_name + "_flag"
+            self.gflags[flag_name] = ", ".join(flags)
+            if strct_name in self.structs_defs.keys():
+                flag_type = self.structs_defs[strct_name][1][element]
+                self.structs_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
+                logging.info("New flag type added: " + self.structs_defs[strct_name][1][element])
+            elif strct_name in self.union_defs.keys():
+                flag_type = self.union_defs[strct_name][1][element]
+                self.union_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
+                logging.info("New flag type added: " + self.union_defs[strct_name][1][element])
+        except Exception as e:
+            logging.error(e)
+            logging.debug("Error in function: add_flag")
 
     def build_enums(self, child):
         try:
@@ -245,7 +291,7 @@ class Descriptions(object):
             return desc_str
         except Exception as e:
             logging.error(e)
-            print("Error occured while resolving enum")
+            logging.debug("Error occured while resolving enum")
 
     def build_ptr(self, child):
         """
@@ -282,23 +328,25 @@ class Descriptions(object):
         """
 
         try:
-            len_regx = re.compile("(.+)len") #regex to check if name of element contains 'len' keyword
+            #regex to check if name of element contains 'len' keyword
+            len_regx = re.compile("(.+)len") 
             name = child.get("ident")
-            logging.debug("[*] Building struct " + name)
-            if name not in self.structs_and_unions.keys():
+            if name not in self.structs_defs.keys():
+                logging.debug("[*] Building struct " + name + ", id: " + str(child.get("id")))
+                self.structs_defs[name] = []
                 elements = {}
                 prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
                 strct_end = int(child.get("end-line"))
                 end_line = strct_strt
-                prev_elem_type = None
+                prev_elem_type = "None"
                 #get the type of each element in struct
                 for element in child:
                     elem_type = self.get_type(element)
                     start_line = int(element.get("start-line"))
                     #check for flags defined in struct's scope,
                     #possibility of flags only when prev_elem_type has 'int' keyword 
-                    if ((start_line - end_line) > 1) and ("int" in prev_elem_type):   
+                    if ((start_line - end_line) > 1) and ("int" in prev_elem_type):
                         enum_name = self.instruct_flags(name, prev_elem_name, end_line, start_line, prev_elem_type)
                         if enum_name is not None:
                             elements[prev_elem_name]= enum_name
@@ -320,13 +368,20 @@ class Descriptions(object):
                         matches = [search_str for search_str in elements if re.search(buf_name, search_str)] 
                         for i in matches:
                             if i is not element:
-                                elem_type = "len[" + i + ", " + elements[element] + "]"
+                                if elements[element] in type_dict.values():
+                                    elem_type = "len[" + i + ", " + elements[element] + "]"
+                                elif "flags" in elements[element]:
+                                    basic_type = elements[element].split(",")[-1][:-1].strip()
+                                    elem_type = "len[" + i + ", " + basic_type + "]"
+                                else:
+                                    logging.debug("len type unhandled")
+                                    elem_type = "None"
                                 elements[element] = elem_type
-                #format the struct according to sylang
+                #format the struct according to syzlang
                 element_str = ""
                 for element in elements: 
                     element_str += element + "\t" + elements[element] + "\n"
-                self.structs_and_unions[name] = [" {\n" + element_str + "}\n", child, elements.keys()]
+                self.structs_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
             logging.error(e)
@@ -339,16 +394,17 @@ class Descriptions(object):
         """
 
         try:
+            #regex to check if name of element contains 'len' keyword
             len_regx = re.compile("(.+)len")
             name = child.get("ident")
-            logging.debug("[*] Building union " + name)
-            if name not in self.structs_and_unions.keys():
+            if name not in self.union_defs.keys():
+                logging.debug("[*] Building union " + name)
                 elements = {}
                 prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
                 strct_end = int(child.get("end-line"))
                 end_line = strct_strt
-                prev_elem_type = None
+                prev_elem_type = "None"
                 #get the type of each element in union
                 for element in child:
                     elem_type = self.get_type(element)
@@ -368,9 +424,6 @@ class Descriptions(object):
                     enum_name = self.instruct_flags(name, prev_elem_name, start_line, strct_end, elem_type)
                     if enum_name is not None:
                         elements[prev_elem_name] = enum_name
-                #get flags in vicinity of union
-                
-
                 
                 #check for the elements which store length of an array or buffer
                 for element in elements:
@@ -387,7 +440,7 @@ class Descriptions(object):
                 element_str = ""
                 for element in elements: 
                     element_str += element + "\t" + elements[element] + "\n"
-                self.structs_and_unions[name] = [" [\n" + element_str +"]\n", child, elements.keys()]
+                self.union_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
             logging.error(e)
@@ -401,22 +454,40 @@ class Descriptions(object):
         """
 
         try:
+            logging.info("Pretty printing structs and unions ")
             pretty = ""
-            for key in self.structs_and_unions:
-                elements = self.structs_and_unions[key][0]
-                node = self.structs_and_unions[key][1]
-                element_names = self.structs_and_unions[key][2]                
+
+            for key in self.structs_defs:
+                element_str = ""                
+                node = self.structs_defs[key][0]
+                element_names = self.structs_defs[key][1].keys()                
                 strct_strt = int(node.get("start-line"))
                 strct_end = int(node.get("end-line"))
                 #get flags in vicinity of structs
                 self.find_flags(key, element_names, strct_strt, strct_end)
                 #predictions for uncategorised flags
+                self.possible_flags(key)
+                for element in self.structs_defs[key][1]: 
+                    element_str += element + "\t" + self.structs_defs[key][1][element] + "\n" 
+                elements = " {\n" + element_str + "\n}"
+                pretty += (str(key) + str(elements) + "\n")
+            for key in self.union_defs:
+                node = self.union_defs[key][0]
+                element_names = self.union_defs[key][1].keys()                
+                union_strt = int(node.get("start-line"))
+                union_end = int(node.get("end-line"))
+                #get flags in vicinity of structs
+                self.find_flags(key, element_names, union_strt, union_end)
+                #predictions for uncategorised flags
                 #self.possible_flags(key)
+                for element in self.union_defs[key][1]:
+                    element_str += element + "\t" + self.union_defs[key][1][element] + "\n"
+                elements = " [\n" + element_str + "\n]"
                 pretty += (str(key) + str(elements) + "\n")
             return pretty
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Error in parsing structs")
+            logging.debug("[*] Error in parsing structs and unions")
 
 
     def pretty_ioctl(self, fd):
@@ -426,6 +497,7 @@ class Descriptions(object):
         """
 
         try:
+            logging.info("Pretty printing ioctl descriptions")
             descriptions = ""
             if self.arguments is not None:
                 for key in self.arguments:
@@ -498,17 +570,28 @@ class Descriptions(object):
                     if self.ptr_dir != "null":
 
                         #Get the type of argument
-                        argument_name = argument.split(" ")[-1].strip()
+                        argument_def = argument.split(" ")[-1].strip()
 
                         #when argument is of general type as defined in type_dict
+                        logging.debug("Generating descriptions for " + cmd + ", args: " + argument_def)
+                        
+                        #if argument_name is an array
+                        if "[" in argument_def:
+                            argument_def = argument_def.split("[")
+                            argument_name = argument_def[0]
+                        else:
+                            argument_name = argument_def
+
                         if argument_name in type_dict.keys():
                             self.arguments[cmd] = type_dict.get(argument_name)
                         else:
                             raw_arg = self.get_id(self.get_root(argument_name), argument_name)
                             if raw_arg is not None:
-                    
-                                #define argument description for the ioctl call
-                                arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
+                                if type(argument_def) == list:
+                                    arg_str = "array[" + raw_arg[0] + ", " + argument_def[1].split("]")[0] + "]"
+                                else:
+                                    #define argument description for the ioctl call
+                                    arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
                                 self.arguments[cmd] = arg_str
                     #for IO_ ioctls as they don't have any arguments
                     else:
