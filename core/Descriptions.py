@@ -200,16 +200,27 @@ class Descriptions(object):
         return
         #except Exception as e:
          #   logging.error(e)
-          #  print("Error in searching for potential flags for" + strct_name)
+          #  print("Error in searching for potential flags for" + strct_name)'''
     
     def possible_flags(self, strct_name):
+        """function to find possible categories of leftover flags
+        """
         small_flag = []
+        visited = [] 
         file = self.current_file + ".i"
         for i in range(len(self.flag_descriptions[file])):
             flags = self.flag_descriptions[file][i][0]
             small_flag.extend([i.lower() for i in flags])
-        res = process.extract(strct_name, small_flag)
-        logging.info("Result for " + strct_name + ": " + str(res))'''
+        matches = [choice for (choice, score) in process.extract(strct_name, small_flag, scorer=fuzz.partial_ratio) if (score >= 50)]
+        logging.debug("Possible flags groups for " + strct_name + ": ")
+        for match in matches:
+            find_str = match.upper()
+            for i in range(len(self.flag_descriptions[file])):
+                if (find_str in self.flag_descriptions[file][i][0]):
+                    if (self.flag_descriptions[file][i][0] not in visited):
+                        visited.append(self.flag_descriptions[file][i][0])
+                        logging.debug("[XX]" + str(self.flag_descriptions[file][i][0]))
+                    break
 
 
     def find_flags(self, name, elements, start, end):
@@ -217,7 +228,8 @@ class Descriptions(object):
         try:
             end+=1            
             logging.debug("[+] Finding flags in vicinity of " + name )
-            last_tup=len(self.flag_descriptions[self.current_file+ ".i"])
+            last_tup=len(self.flag_descriptions[self.current_file + ".i"])
+            file_name = self.current_file+ ".i"
             '''max_start = 0
             min_end = 1000000000
             flags = []
@@ -229,24 +241,26 @@ class Descriptions(object):
                 if (child_end > end) and (child_end < min_end):
                     min_end = child.get("end-line")'''
             while(1):
-                for i in range(len(self.flag_descriptions[self.current_file+ ".i"])):
-                    flags_tup = self.flag_descriptions[self.current_file+ ".i"][i]
+                for i in range(len(self.flag_descriptions[file_name])):
+                    flags_tup = self.flag_descriptions[file_name][i]
                     if flags_tup[1]>end:
                         break
                     if flags_tup[1] == end:
                         if any(substring in flg.lower() for flg in flags_tup[0] for substring in name.split("_")[1:]):
                             print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + ": " + str(flags_tup[0]))
                             if (self.append_flag()):
-                                self.add_flag(flags_tup[0], name)
+                                if (self.add_flag(flags_tup[0], name)):
+                                    del self.flag_descriptions[file_name][i]
                             return
                         else:
                             for element in elements:
                                 if any(element in flg.lower() for flg in flags_tup[0]):
                                     print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + " for " + element + ": " + str(flags_tup[0]))
                                     if (self.append_flag()):
-                                        self.add_flag(flags_tup[0], name, element)
+                                        if (self.add_flag(flags_tup[0], name, element)):
+                                            del self.flag_descriptions[file_name][i]
                                     return
-                if end>self.flag_descriptions[self.current_file+ ".i"][last_tup-1][1]:
+                if end>self.flag_descriptions[file_name][last_tup-1][1]:
                     logging.debug("No flag found")
                     return
                 else:
@@ -274,10 +288,12 @@ class Descriptions(object):
                 flag_type = self.structs_defs[strct_name][1][element]
                 self.structs_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
                 logging.info("New flag type added: " + self.structs_defs[strct_name][1][element])
+                return True
             elif strct_name in self.union_defs.keys():
                 flag_type = self.union_defs[strct_name][1][element]
                 self.union_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
                 logging.info("New flag type added: " + self.union_defs[strct_name][1][element])
+                return True
         except Exception as e:
             logging.error(e)
             logging.debug("Error in function: add_flag")
@@ -469,7 +485,7 @@ class Descriptions(object):
                 self.possible_flags(key)
                 for element in self.structs_defs[key][1]: 
                     element_str += element + "\t" + self.structs_defs[key][1][element] + "\n" 
-                elements = " {\n" + element_str + "\n}"
+                elements = " {\n" + element_str + "}\n"
                 pretty += (str(key) + str(elements) + "\n")
             for key in self.union_defs:
                 node = self.union_defs[key][0]
@@ -482,7 +498,7 @@ class Descriptions(object):
                 #self.possible_flags(key)
                 for element in self.union_defs[key][1]:
                     element_str += element + "\t" + self.union_defs[key][1][element] + "\n"
-                elements = " [\n" + element_str + "\n]"
+                elements = " [\n" + element_str + "]\n"
                 pretty += (str(key) + str(elements) + "\n")
             return pretty
         except Exception as e:
