@@ -197,38 +197,50 @@ class Descriptions(object):
         print("\033[31;1m-------------------------\033[m")
 
     def find_flags(self, name, elements, start, end):
-        """Predict flags present near a struct"""
+        """Find flags present near a struct"""
         try:
-            end+=1            
             logging.debug("[*] Finding flags in vicinity of " + name )
-            last_tup=len(self.flag_descriptions[self.current_file + ".i"])
-            file_name = self.current_file+ ".i"
-
-            while(1):
-                for i in range(len(self.flag_descriptions[file_name])):
-                    flags_tup = self.flag_descriptions[file_name][i]
-                    if flags_tup[1]>end:
+            file_name = self.current_file + ".i"
+            last_tup=len(self.flag_descriptions[file_name])
+            print("Start: " + str(start) + ", end: " + str(end))
+            #for flags after the struct
+            max_line_no = self.flag_descriptions[file_name][0][2]
+            min_line_no = self.flag_descriptions[file_name][last_tup-1][1]
+            index = None
+            for i in range(last_tup-1,0,-1):
+                flags_tup = self.flag_descriptions[file_name][i]
+                #find flags after the enf of struct, if start of flag tuple is < end of struct
+                if flags_tup[1] < end:
+                    if index == None:
                         break
-                    if flags_tup[1] == end:
-                        if any(substring in flg.lower() for flg in flags_tup[0] for substring in name.split("_")[1:]):
-                            print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + ": " + str(flags_tup[0]))
-                            if (self.append_flag()):
-                                if (self.add_flag(flags_tup[0], name)):
-                                    del self.flag_descriptions[file_name][i]
-                            return
-                        else:
-                            for element in elements:
-                                if any(element in flg.lower() for flg in flags_tup[0]):
-                                    print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + " for " + element + ": " + str(flags_tup[0]))
-                                    if (self.append_flag()):
-                                        if (self.add_flag(flags_tup[0], name, element)):
-                                            del self.flag_descriptions[file_name][i]
-                                    return
-                if end>self.flag_descriptions[file_name][last_tup-1][1]:
-                    logging.debug("[*] No flag found")
-                    return
-                else:
-                    end+=1
+                    min_tup = self.flag_descriptions[file_name][index]
+                    print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + ": " + str(min_tup[0]))
+                    print("Start: " + str(min_tup[1]))
+                    if (self.append_flag()):
+                        if (self.add_flag(min_tup[0], name)):
+                            del self.flag_descriptions[file_name][index]
+                    break
+                elif (min_line_no > flags_tup[1]):
+                    min_line_no = flags_tup[1]
+                    index = i
+            index = None
+            for i in range(last_tup):
+                flags_tup = self.flag_descriptions[file_name][i]
+                #find flags present before start of struct, if end of flag tuple is > start of struct
+                if flags_tup[2] > start:
+                    if index == None:
+                        break
+                    max_tup = self.flag_descriptions[file_name][index]
+                    print("\033[31;1m[ ** ] Found flags in vicinity\033[m of " + name + ": " + str(max_tup[0]))
+                    print("Start: " + str(max_tup[1]))
+                    if (self.append_flag()):
+                        if (self.add_flag(max_tup[0], name)):
+                            del self.flag_descriptions[file_name][index]
+                    break
+                elif (max_line_no < flags_tup[2]):
+                    max_line_no = flags_tup[2]
+                    index = i
+            return
         except Exception as e:
             logging.error(e)
             logging.debug("[!] Error in finding flags present near struct " + name)
