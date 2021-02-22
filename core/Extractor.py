@@ -72,17 +72,17 @@ class Extractor(object):
                         
                 ior_match = self.ior.match(line)
                 if ior_match:
-                    self.ioctls.append(Ioctl(Ioctl.IOR, file, ior_match.groups()[0].strip(), ior_match.groups()[-1]])
+                    self.ioctls.append(Ioctl(Ioctl.IOR, file, ior_match.groups()[0].strip(), ior_match.groups()[-1]))
                     continue
 
                 iow_match = self.iow.match(line)
                 if iow_match:
-                    self.ioctls.append(Ioctl(Ioctl.IOW, file, iow_match.groups()[0].strip(), iow_match.groups()[-1]])
+                    self.ioctls.append(Ioctl(Ioctl.IOW, file, iow_match.groups()[0].strip(), iow_match.groups()[-1]))
                     continue
                 
                 iowr_match = self.iowr.match(line)
                 if iowr_match:
-                    self.ioctls.append(Ioctl(Ioctl.IOWR, file, iowr_match.groups()[0].strip(), iowr_match.groups()[-1]])
+                    self.ioctls.append(Ioctl(Ioctl.IOWR, file, iowr_match.groups()[0].strip(), iowr_match.groups()[-1]))
                     continue
 
     @property
@@ -99,7 +99,12 @@ class Extractor(object):
         return header_files
 
     @property
-    def command_macros(self):
+    def command_macros(self) -> list:
+        """Finds all the commands in the Ioctls
+
+        Returns:
+            list: list of generated ioctls
+        """
         commands = []
         for ioctl in self.ioctls:
             commands.append(ioctl.command)
