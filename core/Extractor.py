@@ -1,13 +1,28 @@
 # Module : Extractor.py
 # Description : Extracts the necessary details from the source code
 from core.Utils import Utils
-from logger import get_logger
+from core.logger import get_logger
 
 from os.path import join, basename, isdir, isfile, exists
 import os
 import re
 import collections
 
+class Ioctl(object):
+    IO = 1
+    IOW = 2
+    IOR = 3
+    IOWR = 4
+    types = {IO: '', IOW: 'in', IOR: 'out', IOWR: 'inout'}
+
+    def __init__(self, gtype, filename, command, description=None):
+        self.type = gtype
+        self.command = command
+        self.filename = filename
+        self.description = description
+
+    def __repr__(self):
+        return self.types[self.type] + ", " + self.command + ", " + self.description
 
 class Extractor(object):
     io = re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 
@@ -21,7 +36,6 @@ class Extractor(object):
         self.sysobj = sysobj
         self.target = sysobj.target
         self.files = os.listdir(self.target)
-        self.command_macros = []
         self.logger = get_logger("Extractor", sysobj.log_level)
 
         self.target_dir = join(os.getcwd(), "out/preprocessed/", basename(self.target))
@@ -31,16 +45,15 @@ class Extractor(object):
         self.ioctl_file = ""
 
 
-    def get_ioctls(self, header_files):
+    def get_ioctls(self):
         """
         Fetch the ioctl commands with their arguments and sort them on the basis of their type
         :return:
         """
-        command_descs = ""
-        ioctl_commands = []
-        command_file = []
+        # TODO: get macros
+        self.ioctls = []
         
-        for file in header_files:
+        for file in self.header_files:
             try:
                 fd = open(join(self.target, file), "r")
                 content = fd.readlines()
@@ -52,56 +65,25 @@ class Extractor(object):
 
             for line in content:
                 # TODO: realign the matches
-                command_desc = []
                 io_match = self.io.match(line)
-                iow_match = self.iow.match(line)
-                ior_match = self.ior.match(line)
-                iowr_match = self.iowr.match(line)
-
-                #array to store: PTR direction of ioctl call argument, command macro , command arguments
                 if io_match:
-                    command = io_match.groups()[0].strip()
-                    command_desc = ["null", command, "null"] 
-                    command_file.append(file)
-                elif ior_match:
-                    command = ior_match.groups()[0].strip()
-                    description = ior_match.groups()[-1]
-                    command_desc = ["in", command, description]
-                    command_file.append(file)
-                elif iow_match:
-                    command = iow_match.groups()[0].strip()
-                    description = iow_match.groups()[-1]
-                    command_desc = ["out", command, description]
-                    command_file.append(file)
-                elif iowr_match:
-                    command = iowr_match.groups()[0].strip()
-                    description = iowr_match.groups()[-1]
-                    command_desc = ["inout", command, description]
-                    command_file.append(file)
-                if command_desc:
-                    self.command_macros.append(command)
-                    ioctl_commands.append(command_desc)
-                    command_descs += ", ".join(command_desc) + "\n"
-                    command_file.append(file)
-            self.logger.debug("[*] Analysed " + file)
+                    self.ioctls.append(Ioctl(Ioctl.IO, file, io_match.groups()[0].strip()))
+                    continue
+                        
+                ior_match = self.ior.match(line)
+                if ior_match:
+                    self.ioctls.append(Ioctl(Ioctl.IOR, file, ior_match.groups()[0].strip(), ior_match.groups()[-1]])
+                    continue
 
-        if command_descs == "":
-            self.logger.debug("[*] Doesn't have Ioctl calls")
-            return None
-        else:
-            #store commands in a file named ioctl_commands.txt in the corresponding out/<target> folder 
-            output_file_path = join(os.getcwd(), "out/preprocessed", basename(self.target))
-            if not exists(output_file_path):
-                Utils.create_dir(output_file_path)
-
-            self.ioctl_file = join(output_file_path, "ioctl_commands.txt") 
-            output_file = open(self.ioctl_file, "w")
-            output_file.write(command_descs)
-            output_file.close()
-
-            self.logger.debug(f"[*] Ioctl commands stored at {output_file_path} ioctl_commands.txt")
-            # TODO: why are we returning
-            return set(command_file)
+                iow_match = self.iow.match(line)
+                if iow_match:
+                    self.ioctls.append(Ioctl(Ioctl.IOW, file, iow_match.groups()[0].strip(), iow_match.groups()[-1]])
+                    continue
+                
+                iowr_match = self.iowr.match(line)
+                if iowr_match:
+                    self.ioctls.append(Ioctl(Ioctl.IOWR, file, iowr_match.groups()[0].strip(), iowr_match.groups()[-1]])
+                    continue
 
     @property
     def header_files(self) -> list:
@@ -116,8 +98,14 @@ class Extractor(object):
                 header_files.append(filename)
         return header_files
 
+    @property
+    def command_macros(self):
+        commands = []
+        for ioctl in self.ioctls:
+            commands.append(ioctl.command)
+        return commands
 
-    def fetch_flags(self, header_files):
+    def fetch_flags(self):
         """
         Fetch all the macros defined
         :return:
@@ -125,7 +113,7 @@ class Extractor(object):
 
         undefined_macros = []
         #read all the files present in target
-        for file in header_files:
+        for file in self.header_files:
             try:
                 buf = open(join(self.target, file), 'r').read()
                 undefined_macros.extend(self.macros.findall(buf))
