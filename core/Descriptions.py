@@ -9,8 +9,6 @@ import re
 import os
 import string
 import logging
-import pylcs
-import py_common_subseq as common_sub
 
 type_dict = {
     "unsigned char": "int8",
@@ -74,7 +72,7 @@ class Descriptions(object):
                         return child
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Issue in resolving: %s", find_id)
+            logging.debug("[!] Issue in resolving: %s", find_id)
         
     def get_id(self, root, find_ident):
         """
@@ -91,11 +89,11 @@ class Descriptions(object):
                 for child in element:
                     if child.get("ident") == find_ident:
                         return self.get_type(child), child
-            logging.info("TO-DO: Find again")
+            logging.debug("TO-DO: Find again")
             self.get_id(self.current_root, find_ident)
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Issue in resolving: %s", find_ident)
+            logging.debug("[!] Issue in resolving: %s", find_ident)
 
     def get_type(self, child):
         """
@@ -149,10 +147,11 @@ class Descriptions(object):
                 return self.get_type(root)
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while fetching the type")
+            logging.debug("[!] Error occured while fetching the type")
 
     def instruct_flags(self, strct_name, name, strt_line, end_line, flg_type):
         try:
+            logging.debug("[*] Checking for instruct flags.")
             flg_name = name + "_flag"
             file_name = self.current_file + ".i"
             if flg_name in self.gflags:
@@ -173,38 +172,12 @@ class Descriptions(object):
             return ret_str
         except Exception as e:
             logging.error(e)
-            logging.debug("Error in grabbing flags")
-    
-    '''def possible_flags(self, strct_name, elements=None):
-        """function to find possible categories of leftover flags
-        """
-        small_flag = []
-        len_sub = []
-        possible_flags = []
-        file = self.current_file + ".i"
-        for i in range(len(self.flag_descriptions[file])):
-            flags = self.flag_descriptions[file][i][0]
-            small_flag.extend([i.lower() for i in flags])
-            len_sub.extend(pylcs.lcs_of_list(strct_name, small_flag))
-            for substring in strct_name.split("_"):
-                print("substring: " + substring)
-                for j in range(len(small_flag)):
-                    if substring in small_flag[j]:
-                        possible_flags.extend(self.flag_descriptions[file][i][0])
-            max_len = max(len_sub)
-            for k in possible_flags:
-                if len(k)==max_len:
-                    print(k)
-
-        print("-"*50)
-        return
-        #except Exception as e:
-         #   logging.error(e)
-          #  print("Error in searching for potential flags for" + strct_name)'''
+            logging.debug("[!] Error in grabbing flags")
     
     def possible_flags(self, strct_name):
         """function to find possible categories of leftover flags
         """
+        logging.debug("Finding possible flags for " + strct_name)
         small_flag = []
         visited = [] 
         file = self.current_file + ".i"
@@ -212,34 +185,25 @@ class Descriptions(object):
             flags = self.flag_descriptions[file][i][0]
             small_flag.extend([i.lower() for i in flags])
         matches = [choice for (choice, score) in process.extract(strct_name, small_flag, scorer=fuzz.partial_ratio) if (score >= 50)]
-        logging.debug("Possible flags groups for " + strct_name + ": ")
+        print("\033[31;1mPossible flags groups for " + strct_name + ": \033[m")
         for match in matches:
             find_str = match.upper()
             for i in range(len(self.flag_descriptions[file])):
                 if (find_str in self.flag_descriptions[file][i][0]):
                     if (self.flag_descriptions[file][i][0] not in visited):
                         visited.append(self.flag_descriptions[file][i][0])
-                        logging.debug("[XX]" + str(self.flag_descriptions[file][i][0]))
+                        print("[XX]" + str(self.flag_descriptions[file][i][0]))
                     break
-
+        print("\033[31;1m-------------------------\033[m")
 
     def find_flags(self, name, elements, start, end):
         """Predict flags present near a struct"""
         try:
             end+=1            
-            logging.debug("[+] Finding flags in vicinity of " + name )
+            logging.debug("[*] Finding flags in vicinity of " + name )
             last_tup=len(self.flag_descriptions[self.current_file + ".i"])
             file_name = self.current_file+ ".i"
-            '''max_start = 0
-            min_end = 1000000000
-            flags = []
-            for child in self.current_root:
-                #child_start = int(child.get("start-line"))
-                child_end = int(child.get("start-line"))
-                if (child_start < start) and (child_start > max_start):
-                    max_start = child.get("start-line")
-                if (child_end > end) and (child_end < min_end):
-                    min_end = child.get("end-line")'''
+
             while(1):
                 for i in range(len(self.flag_descriptions[file_name])):
                     flags_tup = self.flag_descriptions[file_name][i]
@@ -261,13 +225,13 @@ class Descriptions(object):
                                             del self.flag_descriptions[file_name][i]
                                     return
                 if end>self.flag_descriptions[file_name][last_tup-1][1]:
-                    logging.debug("No flag found")
+                    logging.debug("[*] No flag found")
                     return
                 else:
                     end+=1
         except Exception as e:
             logging.error(e)
-            logging.debug("Error in finding flags present near struct " + name)
+            logging.debug("[!] Error in finding flags present near struct " + name)
     
     def append_flag(self):
         try:
@@ -276,7 +240,7 @@ class Descriptions(object):
             return False
         except Exception as e:
             logging.error(e)
-            logging.debug("Error in function: append_flag")
+            logging.debug("[!] Error in function: append_flag")
 
     def add_flag(self, flags, strct_name, element = None):
         try:
@@ -287,27 +251,28 @@ class Descriptions(object):
             if strct_name in self.structs_defs.keys():
                 flag_type = self.structs_defs[strct_name][1][element]
                 self.structs_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
-                logging.info("New flag type added: " + self.structs_defs[strct_name][1][element])
+                logging.debug("[*] New flag type added: " + self.structs_defs[strct_name][1][element])
                 return True
             elif strct_name in self.union_defs.keys():
                 flag_type = self.union_defs[strct_name][1][element]
                 self.union_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
-                logging.info("New flag type added: " + self.union_defs[strct_name][1][element])
+                logging.debug("[*] New flag type added: " + self.union_defs[strct_name][1][element])
                 return True
         except Exception as e:
             logging.error(e)
-            logging.debug("Error in function: add_flag")
+            logging.debug("[!] Error in function: add_flag")
 
     def build_enums(self, child):
         try:
             name = child.get("ident")
+            logging.debug("[*] Building enum: " + name)
             if name:
                 desc_str = "flags[" + name + "_flags]"
                 flags_undefined.append(desc_str)
             return desc_str
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while resolving enum")
+            logging.debug("[!] Error occured while resolving enum")
 
     def build_ptr(self, child):
         """
@@ -316,8 +281,8 @@ class Descriptions(object):
         """
 
         try:
-            logging.debug("[*] Building pointer")
             name = child.get("ident")
+            logging.debug("[*] Building pointer: " + name)
             #pointer is a builtin type
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
@@ -335,7 +300,7 @@ class Descriptions(object):
             return ptr_str
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while resolving pointer")
+            logging.debug("[!] Error occured while resolving pointer")
 
     def build_struct(self, child):
         """
@@ -348,7 +313,7 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len") 
             name = child.get("ident")
             if name not in self.structs_defs.keys():
-                logging.debug("[*] Building struct " + name + ", id: " + str(child.get("id")))
+                logging.debug("[*] Building struct: " + name)
                 self.structs_defs[name] = []
                 elements = {}
                 prev_elem_name = "nill"
@@ -390,18 +355,15 @@ class Descriptions(object):
                                     basic_type = elements[element].split(",")[-1][:-1].strip()
                                     elem_type = "len[" + i + ", " + basic_type + "]"
                                 else:
-                                    logging.debug("len type unhandled")
+                                    logging.debug("[*] Len type unhandled")
                                     elem_type = "None"
                                 elements[element] = elem_type
-                #format the struct according to syzlang
-                element_str = ""
-                for element in elements: 
-                    element_str += element + "\t" + elements[element] + "\n"
+                
                 self.structs_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while resolving the struct: " + name)
+            logging.debug("[!] Error occured while resolving the struct: " + name)
 
     def build_union(self, child):
         """
@@ -414,7 +376,7 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             name = child.get("ident")
             if name not in self.union_defs.keys():
-                logging.debug("[*] Building union " + name)
+                logging.debug("[*] Building union: " + name)
                 elements = {}
                 prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
@@ -452,15 +414,11 @@ class Descriptions(object):
                                 elem_type = "len[" + i + ", " + elements[element] + "]"
                                 elements[element] = elem_type
 
-                #format union
-                element_str = ""
-                for element in elements: 
-                    element_str += element + "\t" + elements[element] + "\n"
                 self.union_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
             logging.error(e)
-            logging.debug("Error occured while resolving the union")
+            logging.debug("[!] Error occured while resolving the union")
 
 
     def pretty_structs_unions(self):
@@ -470,7 +428,7 @@ class Descriptions(object):
         """
 
         try:
-            logging.info("Pretty printing structs and unions ")
+            logging.debug("[*] Pretty printing structs and unions ")
             pretty = ""
 
             for key in self.structs_defs:
@@ -495,7 +453,7 @@ class Descriptions(object):
                 #get flags in vicinity of structs
                 self.find_flags(key, element_names, union_strt, union_end)
                 #predictions for uncategorised flags
-                #self.possible_flags(key)
+                self.possible_flags(key)
                 for element in self.union_defs[key][1]:
                     element_str += element + "\t" + self.union_defs[key][1][element] + "\n"
                 elements = " [\n" + element_str + "]\n"
@@ -503,7 +461,7 @@ class Descriptions(object):
             return pretty
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Error in parsing structs and unions")
+            logging.debug("[!] Error in parsing structs and unions")
 
 
     def pretty_ioctl(self, fd):
@@ -513,7 +471,7 @@ class Descriptions(object):
         """
 
         try:
-            logging.info("Pretty printing ioctl descriptions")
+            logging.debug("[*] Pretty printing ioctl descriptions")
             descriptions = ""
             if self.arguments is not None:
                 for key in self.arguments:
@@ -531,7 +489,7 @@ class Descriptions(object):
             return descriptions
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Error in parsing ioctl command descriptions")
+            logging.debug("[!] Error in parsing ioctl command descriptions")
 
     def make_file(self, header_files):
         """
@@ -540,6 +498,7 @@ class Descriptions(object):
         """
 
         try:
+            logging.debug("[*] Generating description file")
             includes = ""
             flags_defn = ""
             for file in header_files:
@@ -567,7 +526,7 @@ class Descriptions(object):
                 return None
         except Exception as e:
             logging.error(e)
-            logging.debug("[*] Error in making device file")
+            logging.debug("[!] Error in making device file")
 
     def run(self, extracted_file):
         """
@@ -589,7 +548,7 @@ class Descriptions(object):
                         argument_def = argument.split(" ")[-1].strip()
 
                         #when argument is of general type as defined in type_dict
-                        logging.debug("Generating descriptions for " + cmd + ", args: " + argument_def)
+                        logging.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
                         
                         #if argument_name is an array
                         if "[" in argument_def:
@@ -615,4 +574,4 @@ class Descriptions(object):
             return True
         except Exception as e:
             logging.error(e)
-            logging.debug("Error while generating call descriptions")
+            logging.debug("[!] Error while generating call descriptions")
