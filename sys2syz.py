@@ -28,6 +28,7 @@ class Sys2syz(object):
             sys.exit(-1)
         
         self.extractor = Extractor(self)
+        self.bear = Bear(self)
         self.header_files = self.extractor.header_files
         logging.debug("[+] Sys2syz init completed")
 
@@ -56,6 +57,11 @@ class Sys2syz(object):
         return False
 
     def get_ioctls(self) -> bool:
+        """ Get's the IOCTL calls as a list and does sanity check and some stats
+
+        Returns:
+            bool: True is ioctls were found
+        """
         self.extractor.get_ioctls()
         self.ioctls = self.extractor.ioctls
 
@@ -67,9 +73,32 @@ class Sys2syz(object):
             for ioctl in self.ioctls:
                 ioctl_string += str(ioctl) + "\n"
             open("test.log").write(ioctl_string)
-        
+
+        logging.info(f"[+] {len(self.ioctls)} IOCTL calls were found!")
         return True
 
+    @property
+    def undefined_macros(self) -> list:
+        und_macros = self.extractor.fetch_flags()
+        logging.info(f"[+] {und_macros)} undefined macros were found from the file!")
+        return und_macros
+
+    def get_macro_details(self):
+        self.macro_details = self.extractor.flag_details(self.undefined_macros)
+        logging.info(f"[+] Extracted details of {len(self.macro_details)} macros from c2xml!")
+
+    def preprocess_files(self) -> bool:
+        """ Preprocess the files
+        """
+        try:
+            if self.bear.parse_compile_commands():
+                return True
+        except Exception as e:
+            logging.critical("Unable to run bear and parse compile commands")
+            logging.error(e)
+        return False 
+    
+        
 def main():
     global logging
     # Parse the command line arguments
@@ -83,6 +112,7 @@ def main():
 
     logging = get_logger("Syz2syz", args.verbosity)
 
+    # get the header files
     sysobj = Sys2syz(args.target, args.compile_commands, args.operating_system, args.verbosity)
     
     if len(sysobj.header_files) == 0:
@@ -91,47 +121,32 @@ def main():
 
     logging.debug(sysobj.header_files)
 
+    # get the IOCTL calls
     if not sysobj.get_ioctls():
         logging.error("No IOCTL calls found!")
         sys.exit(-1)
 
+    if sysobj.preprocess_files():
+        logging.error("Can't continue.. Exiting")
+        sys.exit(-1)
+    
+    # Extract the macros/flags 
+    sysobj.get_macro_details()
+    logging.info("[+] Completed the initial pre processing of the target")
 
+    c2xml = C2xml(target)
+    out_dir = c2xml.run_c2xml()
+    logging.debug("[+] Created XML files")
 
-    #Extract defined ioctl commands and store the corresponding header file name
-    ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
+    #Get syz-lang descriptions
+    descriptions = Descriptions(out_dir, macro_details)
+    descriptions.run(ioctl_cmd_file)
 
-    #Extract the macros/flags 
-    undefined_macros = extractor.fetch_flags(cmd_header_files)
-    logging.debug("[+] Extracted ioctl commands")
-
-    if ioctl_cmd_file is not None:
-    #Generate preprocessed files
-        bear = Bear(target, compile_commands, verbose)
-        
-        #Format the compilation commands and compile the files in target driver
-        check_preprocess = bear.parse_compile_commands()
-        if check_preprocess:
-
-            macro_details = extractor.flag_details(undefined_macros)
-            logging.debug("[+] Preprocessed files have been generated")
-
-            #Generate xml files using c2xml and preprocessed files
-            c2xml = C2xml(target)
-            out_dir = c2xml.run_c2xml()
-            logging.debug("[+] Created XML files")
-
-            #Get syz-lang descriptions
-            descriptions = Descriptions(out_dir, macro_details)
-            descriptions.run(ioctl_cmd_file)
-
-            #Store the descriptions in the syzkaller's syscall description file format
-            output_path = descriptions.make_file(cmd_header_files)
-            if Utils.file_exists(output_path, True):
-                logging.debug("[+] Description file: " + output_path)
-    else:
-        logging.debug("[+] Exiting, ioctl calls don't exist")
-        exit(0)
-        
+    #Store the descriptions in the syzkaller's syscall description file format
+    output_path = descriptions.make_file(cmd_header_files)
+    if Utils.file_exists(output_path, True):
+        logging.debug("[+] Description file: " + output_path)
+    
 
 if __name__ == "__main__":
     logging = None

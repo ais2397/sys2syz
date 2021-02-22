@@ -3,6 +3,7 @@
 import os
 import subprocess
 import logging
+import shutil
 
 class Utils(object):
     ENV_NONE = 0

@@ -50,7 +50,6 @@ class Extractor(object):
         Fetch the ioctl commands with their arguments and sort them on the basis of their type
         :return:
         """
-        # TODO: get macros
         
         for file in self.header_files:
             try:
@@ -63,7 +62,6 @@ class Extractor(object):
                 continue
 
             for line in content:
-                # TODO: realign the matches
                 io_match = self.io.match(line)
                 if io_match:
                     self.ioctls.append(Ioctl(Ioctl.IO, file, io_match.groups()[0].strip()))
@@ -127,7 +125,6 @@ class Extractor(object):
         Fetch all the macros defined
         :return:
         """
-
         undefined_macros = []
         #read all the files present in target
         for file in self.header_files:
@@ -137,7 +134,6 @@ class Extractor(object):
             except IOError:
                 self.logger.error("Unable to open " + join(self.target, file))
 
-        #TODO: structure this better
         #return the macros found, except the IOCTL command macros in header files
         return list(set(undefined_macros)-set(self.command_macros))
 
