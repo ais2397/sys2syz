@@ -26,9 +26,12 @@ class Sys2syz(object):
         if not self._sanity_check():
             logging.critical("[+] Sys2syz failed to init")
             sys.exit(-1)
-        
+
+        # initialize the sub classes    
         self.extractor = Extractor(self)
         self.bear = Bear(self)
+        self.c2xml = C2xml(self)
+
         self.header_files = self.extractor.header_files
         logging.debug("[+] Sys2syz init completed")
 
@@ -134,7 +137,6 @@ def main():
     sysobj.get_macro_details()
     logging.info("[+] Completed the initial pre processing of the target")
 
-    c2xml = C2xml(target)
     out_dir = c2xml.run_c2xml()
     logging.debug("[+] Created XML files")
 

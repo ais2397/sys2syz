@@ -6,8 +6,9 @@ from lxml import etree
 import os
 
 class C2xml(object):
-    def __init__(self, target):
-        self.target = target
+    def __init__(self, sysobj):
+        self.sysobj = sysobj
+        self.target = sysobj.target
 
     def run_c2xml(self):
         """
