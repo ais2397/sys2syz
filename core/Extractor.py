@@ -38,12 +38,12 @@ class Extractor(object):
         self.files = os.listdir(self.target)
         self.logger = get_logger("Extractor", sysobj.log_level)
 
+        self.ioctls = []
         self.target_dir = join(os.getcwd(), "out/preprocessed/", basename(self.target))
         
         if not exists(self.target_dir):
             os.mkdir(self.target_dir)
         self.ioctl_file = ""
-
 
     def get_ioctls(self):
         """
@@ -51,7 +51,6 @@ class Extractor(object):
         :return:
         """
         # TODO: get macros
-        self.ioctls = []
         
         for file in self.header_files:
             try:
@@ -109,6 +108,19 @@ class Extractor(object):
         for ioctl in self.ioctls:
             commands.append(ioctl.command)
         return commands
+    
+    @property
+    def ioctl_files(self) -> list:
+        """Finds all the files where Ioctls are defined
+
+        Returns:
+            list: list of files
+        """
+        files = set()
+        for ioctl in self.ioctls:
+            files.add(ioctl.filename)
+        return list(files)
+
 
     def fetch_flags(self):
         """
@@ -138,7 +150,7 @@ class Extractor(object):
         all_macros = dict()
         for file in filter(lambda x: x if x.endswith(".i") else None, os.listdir(self.target_dir)):
             try:
-                fd = open(join(self.target_dir, file))
+                fd = open(join(self.target_dir, file), "r")
             except IOError:
                 self.logger.error("Unable to open " + join(self.target_dir, file))
                 continue

@@ -3,7 +3,7 @@ from core.Utils import Utils
 from core.logger import get_logger
 
 from core.Bear import *
-from core.Extractor import Extractor
+from core.Extractor import Extractor, Ioctl
 from core.C2xml import *
 from core.Descriptions import *
 
@@ -55,6 +55,21 @@ class Sys2syz(object):
         logging.error("[+] Target OS not supported/found %s", self.os)
         return False
 
+    def get_ioctls(self) -> bool:
+        self.extractor.get_ioctls()
+        self.ioctls = self.extractor.ioctls
+
+        if len(self.ioctls) == 0:
+            return False
+
+        if self.log_level > 1:
+            ioctl_string = ""
+            for ioctl in self.ioctls:
+                ioctl_string += str(ioctl) + "\n"
+            open("test.log").write(ioctl_string)
+        
+        return True
+
 def main():
     global logging
     # Parse the command line arguments
@@ -75,6 +90,12 @@ def main():
         sys.exit(-1)
 
     logging.debug(sysobj.header_files)
+
+    if not sysobj.get_ioctls():
+        logging.error("No IOCTL calls found!")
+        sys.exit(-1)
+
+
 
     #Extract defined ioctl commands and store the corresponding header file name
     ioctl_cmd_file, cmd_header_files = extractor.get_ioctls(header_files)
