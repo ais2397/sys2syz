@@ -540,50 +540,39 @@ class Descriptions(object):
             logging.error(e)
             logging.debug("[!] Error in making device file")
 
-    def run(self, extracted_file):
+    def run(self, command_details):
         """
         Parses arguments and structures for ioctl calls
         :return: True
         """
-
-        try:
-            with open(extracted_file) as ioctl_commands:
-                commands = ioctl_commands.readlines()
-                for command in commands:
-                    parsed_command = list(command.split(", "))
-                    self.ptr_dir, cmd, argument = parsed_command
-
-                    #for ioctl type is: IOR_, IOW_, IOWR_
-                    if self.ptr_dir != "null":
-
-                        #Get the type of argument
-                        argument_def = argument.split(" ")[-1].strip()
-
-                        #when argument is of general type as defined in type_dict
-                        logging.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
-                        
-                        #if argument_name is an array
-                        if "[" in argument_def:
-                            argument_def = argument_def.split("[")
-                            argument_name = argument_def[0]
+        for command in command_details:
+            parsed_command = list(command.split(", ").strip())
+            self.ptr_dir, cmd, argument = parsed_command
+            #for ioctl type is: IOR_, IOW_, IOWR_
+            if self.ptr_dir != "":
+                #Get the type of argument
+                argument_def = argument.split(" ")[-1].strip()
+                #when argument is of general type as defined in type_dict
+                logging.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
+                #if argument_name is an array
+                if "[" in argument_def:
+                    argument_def = argument_def.split("[")
+                    argument_name = argument_def[0]
+                else:
+                    argument_name = argument_def
+                if argument_name in type_dict.keys():
+                    self.arguments[cmd] = type_dict.get(argument_name)
+                else:
+                    raw_arg = self.get_id(self.get_root(argument_name), argument_name)
+                    if raw_arg is not None:
+                        if type(argument_def) == list:
+                            arg_str = "array[" + raw_arg[0] + ", " + argument_def[1].split("]")[0] + "]"
                         else:
-                            argument_name = argument_def
-
-                        if argument_name in type_dict.keys():
-                            self.arguments[cmd] = type_dict.get(argument_name)
-                        else:
-                            raw_arg = self.get_id(self.get_root(argument_name), argument_name)
-                            if raw_arg is not None:
-                                if type(argument_def) == list:
-                                    arg_str = "array[" + raw_arg[0] + ", " + argument_def[1].split("]")[0] + "]"
-                                else:
-                                    #define argument description for the ioctl call
-                                    arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
-                                self.arguments[cmd] = arg_str
-                    #for IO_ ioctls as they don't have any arguments
-                    else:
-                        self.arguments[cmd] = None
-            return True
-        except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error while generating call descriptions")
+                            #define argument description for the ioctl call
+                            arg_str = "ptr[" + self.ptr_dir + ", "+ raw_arg[0]+ "]"
+                        self.arguments[cmd] = arg_str
+            #for IO_ ioctls as they don't have any arguments
+            else:
+                self.arguments[cmd] = None
+        return True
+         
