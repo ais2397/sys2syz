@@ -140,6 +140,10 @@ def main():
     out_dir = c2xml.run_c2xml()
     logging.debug("[+] Created XML files")
 
+    # TODO: you can create wrapper functions for all these in sysobj. 
+    # TODO: change the descriptions object so that it take sysobj as constructor parameter
+    # TODO: change the functions in the object so they use self.sysobj.macro_details to get the detials
+
     #Get syz-lang descriptions
     descriptions = Descriptions(out_dir, macro_details)
     descriptions.run(ioctl_cmd_file)
