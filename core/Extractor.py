@@ -13,7 +13,7 @@ class Ioctl(object):
     IOW = 2
     IOR = 3
     IOWR = 4
-    types = {IO: '', IOW: 'in', IOR: 'out', IOWR: 'inout'}
+    types = {IO: 'null', IOW: 'in', IOR: 'out', IOWR: 'inout'}
 
     def __init__(self, gtype, filename, command, description=None):
         self.type = gtype
@@ -22,7 +22,7 @@ class Ioctl(object):
         self.description = description
 
     def __repr__(self):
-        return self.types[self.type] + ", " + self.command + ", " + self.description
+        return str(self.types[self.type]) + ", " + str(self.command)  + ", " + str(self.filename) + ", " + str(self.description)
 
 class Extractor(object):
     io = re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 

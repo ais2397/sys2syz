@@ -27,10 +27,15 @@ class Sys2syz(object):
             logging.critical("[+] Sys2syz failed to init")
             sys.exit(-1)
 
+        self.macro_details = ""    
+        self.ioctls = []
+        self.out_dir = os.path.join(os.getcwd(), "out/preprocessed/", basename(self.target), "out")
+
         # initialize the sub classes    
         self.extractor = Extractor(self)
         self.bear = Bear(self)
         self.c2xml = C2xml(self)
+        self.descriptions = Descriptions(self)
 
         self.header_files = self.extractor.header_files
         logging.debug("[+] Sys2syz init completed")
@@ -75,7 +80,7 @@ class Sys2syz(object):
             ioctl_string = ""
             for ioctl in self.ioctls:
                 ioctl_string += str(ioctl) + "\n"
-            open("test.log").write(ioctl_string)
+            open("test.log", "w+").write(ioctl_string)
 
         logging.info(f"[+] {len(self.ioctls)} IOCTL calls were found!")
         return True
@@ -83,9 +88,9 @@ class Sys2syz(object):
     @property
     def undefined_macros(self) -> list:
         und_macros = self.extractor.fetch_flags()
-        logging.info(f"[+] {und_macros)} undefined macros were found from the file!")
+        logging.info(f"[+] {len(und_macros)} undefined macros were found from the file!")
         return und_macros
-
+    
     def get_macro_details(self):
         self.macro_details = self.extractor.flag_details(self.undefined_macros)
         logging.info(f"[+] Extracted details of {len(self.macro_details)} macros from c2xml!")
@@ -100,7 +105,27 @@ class Sys2syz(object):
             logging.critical("Unable to run bear and parse compile commands")
             logging.error(e)
         return False 
-    
+
+    def create_xml_files(self):
+        try:
+            self.c2xml.run_c2xml()
+            return True
+        except Exception as e:
+            logging.critical("Failed to convert C files to XML")
+        return False
+
+    def generate_descriptions(self):
+        #try:
+        self.descriptions.run()
+        #Store the descriptions in the syzkaller's syscall description file format
+        output_path = self.descriptions.make_file()
+        if Utils.file_exists(output_path, True):
+            logging.info("[+] Description file: " + output_path)
+            return True
+        return False
+        '''except Exception as e:
+            logging.critical("Unable to generate descriptions for ioctl calls")
+        return False'''
         
 def main():
     global logging
@@ -129,7 +154,7 @@ def main():
         logging.error("No IOCTL calls found!")
         sys.exit(-1)
 
-    if sysobj.preprocess_files():
+    if not sysobj.preprocess_files():
         logging.error("Can't continue.. Exiting")
         sys.exit(-1)
     
@@ -137,22 +162,19 @@ def main():
     sysobj.get_macro_details()
     logging.info("[+] Completed the initial pre processing of the target")
 
-    out_dir = c2xml.run_c2xml()
-    logging.debug("[+] Created XML files")
+    # Generate XML files
+    if not sysobj.create_xml_files():
+        logging.error("Can't continue.. Exiting")
+        sys.exit(-1)
 
     # TODO: you can create wrapper functions for all these in sysobj. 
     # TODO: change the descriptions object so that it take sysobj as constructor parameter
     # TODO: change the functions in the object so they use self.sysobj.macro_details to get the detials
 
     #Get syz-lang descriptions
-    descriptions = Descriptions(out_dir, macro_details)
-    descriptions.run(ioctl_cmd_file)
-
-    #Store the descriptions in the syzkaller's syscall description file format
-    output_path = descriptions.make_file(cmd_header_files)
-    if Utils.file_exists(output_path, True):
-        logging.debug("[+] Description file: " + output_path)
-    
+    if not sysobj.generate_descriptions():
+        logging.error("Exiting")
+        sys.exit(-1)    
 
 if __name__ == "__main__":
     logging = None
