@@ -1,9 +1,10 @@
 # Module : Description.py 
 # Description : Contains functions which generate descriptions.
 from core.Utils import *
+from core.logger import get_logger
 
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+from os.path import join
+from fuzzywuzzy import fuzz, process
 import xml.etree.ElementTree as ET
 import re
 import os
@@ -23,10 +24,14 @@ type_dict = {
 }
 
 class Descriptions(object):
-    def __init__(self,target, flag_descriptions):
-        self.target = target
-        self.flag_descriptions = flag_descriptions
-        self.trees = {}
+    def __init__(self, sysobj):
+        self.sysobj = sysobj
+        self.xml_dir = sysobj.out_dir
+        self.flag_descriptions = sysobj.macro_details
+        self.ioctls = sysobj.ioctls
+        self.logger = get_logger("Descriptions", sysobj.log_level)
+
+
         self.gflags = {}
         self.structs_defs = {}
         self.union_defs = {}
@@ -34,8 +39,9 @@ class Descriptions(object):
         self.ptr_dir = None
         self.current_root = None
         self.current_file = None
-        for file in (os.listdir(self.target)):
-            tree = ET.parse(self.target+file)
+        self.trees = {}
+        for file in (os.listdir(self.xml_dir)):
+            tree = ET.parse(join(self.xml_dir, file))
             self.trees[tree] = file
 
     def get_root(self, ident_name):
@@ -49,13 +55,13 @@ class Descriptions(object):
                 root = tree.getroot()
                 for child in root:
                     if child.get("ident") == ident_name:
-                        logging.debug("[*] Found Root ")
+                        self.logger.debug("[*] Found Root ")
                         self.current_root = root
                         self.current_file = self.trees[tree].split(".")[0]
                         return root
         except Exception as e:
-            logging.error(e)
-            logging.debug('[*] Unable to find root')
+            self.logger.error(e)
+            self.logger.debug('[*] Unable to find root')
 
     def resolve_id(self, root, find_id):
         """
@@ -71,8 +77,8 @@ class Descriptions(object):
                     if child.get("id") == find_id:
                         return child
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Issue in resolving: %s", find_id)
+            self.logger.error(e)
+            self.logger.debug("[!] Issue in resolving: %s", find_id)
         
     def get_id(self, root, find_ident):
         """
@@ -89,11 +95,11 @@ class Descriptions(object):
                 for child in element:
                     if child.get("ident") == find_ident:
                         return self.get_type(child), child
-            logging.debug("TO-DO: Find again")
+            self.logger.debug("TO-DO: Find again")
             self.get_id(self.current_root, find_ident)
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Issue in resolving: %s", find_ident)
+            self.logger.error(e)
+            self.logger.debug("[!] Issue in resolving: %s", find_ident)
 
     def get_type(self, child):
         """
@@ -104,23 +110,23 @@ class Descriptions(object):
         try:
             #for structures: need to define each element present in struct (build_struct)
             if child.get("type") == "struct":
-                logging.debug("TO-DO: struct")
+                self.logger.debug("TO-DO: struct")
                 return self.build_struct(child)
             #for unions: need to define each element present in union (build_union)
             elif child.get("type") == "union":
-                logging.debug("TO-DO: union")
+                self.logger.debug("TO-DO: union")
                 return self.build_union(child)
             #for functions
             elif child.get("type") == "function":
-                logging.debug("TO-DO: function")
+                self.logger.debug("TO-DO: function")
                 return
             #for pointers: need to define the pointer type and its direction (build_ptr)
             elif child.get("type") == "pointer":
-                logging.debug("TO-DO: pointer")
+                self.logger.debug("TO-DO: pointer")
                 return self.build_ptr(child)
             #for arrays, need to define type of elements in array and size of array (if defined)
             elif child.get("type") == "array":
-                logging.debug("TO-DO: array")
+                self.logger.debug("TO-DO: array")
                 desc_str = "array"
                 if "base-type-builtin" in child.attrib.keys():
                     type_str = type_dict[child.get('base-type-builtin')]
@@ -132,7 +138,7 @@ class Descriptions(object):
                 return desc_str
             #for enums: predict flag for enums (build_enums)
             elif child.get("type") == "enum":
-                logging.debug("TO-DO: enum")
+                self.logger.debug("TO-DO: enum")
                 desc_str = "flags["
                 desc_str += child.get("ident")+"_flags]"
                 return self.build_enums(child)
@@ -142,16 +148,16 @@ class Descriptions(object):
                 return type_dict.get(child.get("base-type-builtin"))            
             #custom type
             else:
-                logging.debug("TO-DO: base-type")
+                self.logger.debug("TO-DO: base-type")
                 root = self.resolve_id(self.current_root, child.get("base-type"))
                 return self.get_type(root)
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error occured while fetching the type")
+            self.logger.error(e)
+            self.logger.debug("[!] Error occured while fetching the type")
 
     def instruct_flags(self, strct_name, name, strt_line, end_line, flg_type):
         try:
-            logging.debug("[*] Checking for instruct flags.")
+            self.logger.debug("[*] Checking for instruct flags.")
             flg_name = name + "_flag"
             file_name = self.current_file + ".i"
             if flg_name in self.gflags:
@@ -160,7 +166,7 @@ class Descriptions(object):
             for i in range(len(self.flag_descriptions[file_name])):
                 flag_tups = self.flag_descriptions[file_name][i]
                 if (int(flag_tups[1])>strt_line-1 and int(flag_tups[2])< end_line-1):
-                    logging.debug("[*] Found instruct flags")
+                    self.logger.debug("[*] Found instruct flags")
                     del self.flag_descriptions[file_name][i]
                     flags = flag_tups[0]
                     break
@@ -171,13 +177,13 @@ class Descriptions(object):
                 ret_str = None               
             return ret_str
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in grabbing flags")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in grabbing flags")
     
     def possible_flags(self, strct_name):
         """function to find possible categories of leftover flags
         """
-        logging.debug("Finding possible flags for " + strct_name)
+        self.logger.debug("Finding possible flags for " + strct_name)
         small_flag = []
         visited = [] 
         file = self.current_file + ".i"
@@ -199,7 +205,7 @@ class Descriptions(object):
     def find_flags(self, name, elements, start, end):
         """Find flags present near a struct"""
         try:
-            logging.debug("[*] Finding flags in vicinity of " + name )
+            self.logger.debug("[*] Finding flags in vicinity of " + name )
             file_name = self.current_file + ".i"
             last_tup=len(self.flag_descriptions[file_name])
             print("Start: " + str(start) + ", end: " + str(end))
@@ -242,8 +248,8 @@ class Descriptions(object):
                     index = i
             return
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in finding flags present near struct " + name)
+            self.logger.error(e)
+            self.logger.debug("[!] Error in finding flags present near struct " + name)
     
     def append_flag(self):
         try:
@@ -251,8 +257,8 @@ class Descriptions(object):
                 return True
             return False
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in function: append_flag")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in function: append_flag")
 
     def add_flag(self, flags, strct_name, element = None):
         try:
@@ -263,28 +269,28 @@ class Descriptions(object):
             if strct_name in self.structs_defs.keys():
                 flag_type = self.structs_defs[strct_name][1][element]
                 self.structs_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
-                logging.debug("[*] New flag type added: " + self.structs_defs[strct_name][1][element])
+                self.logger.debug("[*] New flag type added: " + self.structs_defs[strct_name][1][element])
                 return True
             elif strct_name in self.union_defs.keys():
                 flag_type = self.union_defs[strct_name][1][element]
                 self.union_defs[strct_name][1][element] = "flags["+flag_name + ", " + flag_type + "]"
-                logging.debug("[*] New flag type added: " + self.union_defs[strct_name][1][element])
+                self.logger.debug("[*] New flag type added: " + self.union_defs[strct_name][1][element])
                 return True
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in function: add_flag")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in function: add_flag")
 
     def build_enums(self, child):
         try:
             name = child.get("ident")
-            logging.debug("[*] Building enum: " + name)
+            self.logger.debug("[*] Building enum: " + name)
             if name:
                 desc_str = "flags[" + name + "_flags]"
                 flags_undefined.append(desc_str)
             return desc_str
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error occured while resolving enum")
+            self.logger.error(e)
+            self.logger.debug("[!] Error occured while resolving enum")
 
     def build_ptr(self, child):
         """
@@ -294,7 +300,7 @@ class Descriptions(object):
 
         try:
             name = child.get("ident")
-            logging.debug("[*] Building pointer: " + name)
+            self.logger.debug("[*] Building pointer: " + name)
             #pointer is a builtin type
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
@@ -311,8 +317,8 @@ class Descriptions(object):
                 ptr_str = "ptr[" + self.ptr_dir + ", " + x + "]"
             return ptr_str
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error occured while resolving pointer")
+            self.logger.error(e)
+            self.logger.debug("[!] Error occured while resolving pointer")
 
     def build_struct(self, child):
         """
@@ -325,7 +331,7 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len") 
             name = child.get("ident")
             if name not in self.structs_defs.keys():
-                logging.debug("[*] Building struct: " + name)
+                self.logger.debug("[*] Building struct: " + name)
                 self.structs_defs[name] = []
                 elements = {}
                 prev_elem_name = "nill"
@@ -367,15 +373,15 @@ class Descriptions(object):
                                     basic_type = elements[element].split(",")[-1][:-1].strip()
                                     elem_type = "len[" + i + ", " + basic_type + "]"
                                 else:
-                                    logging.debug("[*] Len type unhandled")
+                                    self.logger.debug("[*] Len type unhandled")
                                     elem_type = "None"
                                 elements[element] = elem_type
                 
                 self.structs_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error occured while resolving the struct: " + name)
+            self.logger.error(e)
+            self.logger.debug("[!] Error occured while resolving the struct: " + name)
 
     def build_union(self, child):
         """
@@ -388,7 +394,7 @@ class Descriptions(object):
             len_regx = re.compile("(.+)len")
             name = child.get("ident")
             if name not in self.union_defs.keys():
-                logging.debug("[*] Building union: " + name)
+                self.logger.debug("[*] Building union: " + name)
                 elements = {}
                 prev_elem_name = "nill"
                 strct_strt = int(child.get("start-line"))
@@ -429,8 +435,8 @@ class Descriptions(object):
                 self.union_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error occured while resolving the union")
+            self.logger.error(e)
+            self.logger.debug("[!] Error occured while resolving the union")
 
 
     def pretty_structs_unions(self):
@@ -440,7 +446,7 @@ class Descriptions(object):
         """
 
         try:
-            logging.debug("[*] Pretty printing structs and unions ")
+            self.logger.debug("[*] Pretty printing structs and unions ")
             pretty = ""
 
             for key in self.structs_defs:
@@ -472,8 +478,8 @@ class Descriptions(object):
                 pretty += (str(key) + str(elements) + "\n")
             return pretty
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in parsing structs and unions")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in parsing structs and unions")
 
 
     def pretty_ioctl(self, fd):
@@ -483,7 +489,7 @@ class Descriptions(object):
         """
 
         try:
-            logging.debug("[*] Pretty printing ioctl descriptions")
+            self.logger.debug("[*] Pretty printing ioctl descriptions")
             descriptions = ""
             if self.arguments is not None:
                 for key in self.arguments:
@@ -500,8 +506,8 @@ class Descriptions(object):
                     descriptions += desc_str
             return descriptions
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in parsing ioctl command descriptions")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in parsing ioctl command descriptions")
 
     def make_file(self, header_files):
         """
@@ -510,7 +516,7 @@ class Descriptions(object):
         """
 
         try:
-            logging.debug("[*] Generating description file")
+            self.logger.debug("[*] Generating description file")
             includes = ""
             flags_defn = ""
             for file in header_files:
@@ -537,15 +543,15 @@ class Descriptions(object):
             else:
                 return None
         except Exception as e:
-            logging.error(e)
-            logging.debug("[!] Error in making device file")
+            self.logger.error(e)
+            self.logger.debug("[!] Error in making device file")
 
-    def run(self, command_details):
+    def run(self):
         """
         Parses arguments and structures for ioctl calls
         :return: True
         """
-        for command in command_details:
+        for command in self.ioctls:
             parsed_command = list(command.split(", ").strip())
             self.ptr_dir, cmd, argument = parsed_command
             #for ioctl type is: IOR_, IOW_, IOWR_
@@ -553,7 +559,7 @@ class Descriptions(object):
                 #Get the type of argument
                 argument_def = argument.split(" ")[-1].strip()
                 #when argument is of general type as defined in type_dict
-                logging.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
+                self.logger.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
                 #if argument_name is an array
                 if "[" in argument_def:
                     argument_def = argument_def.split("[")
