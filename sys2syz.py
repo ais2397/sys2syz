@@ -115,7 +115,6 @@ class Sys2syz(object):
         return False
 
     def generate_descriptions(self):
-<<<<<<< HEAD
         #try:
         self.descriptions.run()
         #Store the descriptions in the syzkaller's syscall description file format
@@ -127,19 +126,6 @@ class Sys2syz(object):
         '''except Exception as e:
             logging.critical("Unable to generate descriptions for ioctl calls")
         return False'''
-=======
-        try:
-            self.descriptions.run()
-            #Store the descriptions in the syzkaller's syscall description file format
-            output_path = descriptions.make_file(cmd_header_files)
-            if Utils.file_exists(output_path, True):
-                logging.info("[+] Description file: " + output_path)
-                return True
-            return False
-        except Exception as e:
-            logging.critical("Unable to generate descriptions for ioctl calls")
-        return False
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
         
 def main():
     global logging

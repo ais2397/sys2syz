@@ -25,19 +25,12 @@ type_dict = {
 class Descriptions(object):
     def __init__(self, sysobj):
         self.sysobj = sysobj
-<<<<<<< HEAD
         self.target = sysobj.target
-=======
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
         self.xml_dir = sysobj.out_dir
         self.flag_descriptions = sysobj.macro_details
         self.ioctls = sysobj.ioctls
         self.logger = get_logger("Descriptions", sysobj.log_level)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
         self.gflags = {}
         self.structs_defs = {}
         self.union_defs = {}
@@ -47,15 +40,9 @@ class Descriptions(object):
         self.current_root = None
         self.current_file = None
         self.trees = {}
-<<<<<<< HEAD
         for xml_file in (os.listdir(self.xml_dir)):
             tree = ET.parse(join(self.xml_dir, xml_file))
             self.trees[tree] = xml_file
-=======
-        for file in (os.listdir(self.xml_dir)):
-            tree = ET.parse(join(self.xml_dir, file))
-            self.trees[tree] = file
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def get_root(self, ident_name):
         """
@@ -74,11 +61,7 @@ class Descriptions(object):
                         return root
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning('[*] Unable to find root')
-=======
-            self.logger.debug('[*] Unable to find root')
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def resolve_id(self, root, find_id):
         """
@@ -95,11 +78,7 @@ class Descriptions(object):
                         return child
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Issue in resolving: %s", find_id)
-=======
-            self.logger.debug("[!] Issue in resolving: %s", find_id)
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
         
     def get_id(self, root, find_ident):
         """
@@ -120,11 +99,7 @@ class Descriptions(object):
             self.get_id(self.current_root, find_ident)
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Issue in resolving: %s", find_ident)
-=======
-            self.logger.debug("[!] Issue in resolving: %s", find_ident)
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def get_type(self, child):
         """
@@ -178,11 +153,7 @@ class Descriptions(object):
                 return self.get_type(root)
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error occured while fetching the type")
-=======
-            self.logger.debug("[!] Error occured while fetching the type")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def instruct_flags(self, strct_name, name, strt_line, end_line, flg_type):
         try:
@@ -207,11 +178,7 @@ class Descriptions(object):
             return ret_str
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in grabbing flags")
-=======
-            self.logger.debug("[!] Error in grabbing flags")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
     
     def possible_flags(self, strct_name):
         """function to find possible categories of leftover flags
@@ -279,11 +246,7 @@ class Descriptions(object):
             return
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in finding flags present near struct " + name)
-=======
-            self.logger.debug("[!] Error in finding flags present near struct " + name)
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
     
     def append_flag(self):
         try:
@@ -292,11 +255,7 @@ class Descriptions(object):
             return False
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in function: append_flag")
-=======
-            self.logger.debug("[!] Error in function: append_flag")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def add_flag(self, flags, strct_name, element = None):
         try:
@@ -316,11 +275,7 @@ class Descriptions(object):
                 return True
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in function: add_flag")
-=======
-            self.logger.debug("[!] Error in function: add_flag")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def build_enums(self, child):
         try:
@@ -332,11 +287,7 @@ class Descriptions(object):
             return desc_str
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error occured while resolving enum")
-=======
-            self.logger.debug("[!] Error occured while resolving enum")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def build_ptr(self, child):
         """
@@ -345,12 +296,7 @@ class Descriptions(object):
         """
 
         try:
-<<<<<<< HEAD
             self.logger.debug("[*] Building pointer")
-=======
-            name = child.get("ident")
-            self.logger.debug("[*] Building pointer: " + name)
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
             #pointer is a builtin type
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
@@ -368,11 +314,7 @@ class Descriptions(object):
             return ptr_str
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error occured while resolving pointer")
-=======
-            self.logger.debug("[!] Error occured while resolving pointer")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def build_struct(self, child):
         """
@@ -427,22 +369,14 @@ class Descriptions(object):
                                     basic_type = elements[element].split(",")[-1][:-1].strip()
                                     elem_type = "len[" + i + ", " + basic_type + "]"
                                 else:
-<<<<<<< HEAD
                                     self.logger.warning("[*] Len type unhandled")
-=======
-                                    self.logger.debug("[*] Len type unhandled")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
                                     elem_type = "None"
                                 elements[element] = elem_type
                 self.structs_defs[name] = [child, elements]
             return str(name)
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error occured while resolving the struct: " + name)
-=======
-            self.logger.debug("[!] Error occured while resolving the struct: " + name)
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def build_union(self, child):
         """
@@ -497,11 +431,7 @@ class Descriptions(object):
             return str(name)
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error occured while resolving the union")
-=======
-            self.logger.debug("[!] Error occured while resolving the union")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
 
     def pretty_structs_unions(self):
@@ -544,11 +474,7 @@ class Descriptions(object):
             return pretty
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in parsing structs and unions")
-=======
-            self.logger.debug("[!] Error in parsing structs and unions")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
 
     def pretty_ioctl(self, fd):
@@ -576,11 +502,7 @@ class Descriptions(object):
             return descriptions
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in parsing ioctl command descriptions")
-=======
-            self.logger.debug("[!] Error in parsing ioctl command descriptions")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def make_file(self):
         """
@@ -617,18 +539,13 @@ class Descriptions(object):
                 return None
         except Exception as e:
             self.logger.error(e)
-<<<<<<< HEAD
             self.logger.warning("[!] Error in making device file")
-=======
-            self.logger.debug("[!] Error in making device file")
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
     def run(self):
         """
         Parses arguments and structures for ioctl calls
         :return: True
         """
-<<<<<<< HEAD
         
         self.flag_descriptions = self.sysobj.macro_details
         self.ioctls = self.sysobj.ioctls
@@ -636,11 +553,6 @@ class Descriptions(object):
             parsed_command = str(command).split(", ")
             self.ptr_dir, cmd, h_file, argument = parsed_command
             self.header_files.append(h_file)
-=======
-        for command in self.ioctls:
-            parsed_command = list(command.split(", ").strip())
-            self.ptr_dir, cmd, argument = parsed_command
->>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
             #for ioctl type is: IOR_, IOW_, IOWR_
             if self.ptr_dir != "null":
                 #Get the type of argument
