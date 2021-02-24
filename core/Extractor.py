@@ -22,7 +22,11 @@ class Ioctl(object):
         self.description = description
 
     def __repr__(self):
+<<<<<<< HEAD
         return str(self.types[self.type]) + ", " + str(self.command)  + ", " + str(self.filename) + ", " + str(self.description)
+=======
+        return str(self.types[self.type]) + ", " + str(self.command) + ", " + str(self.description)
+>>>>>>> 292821e64460b8624a331837a8ae27925d9fa36a
 
 class Extractor(object):
     io = re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 
