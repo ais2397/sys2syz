@@ -61,6 +61,7 @@ class Bear(object):
             src_file = curr_command["file"]
             if driver_path in src_file:
                 curr_args = curr_command["arguments"]
+                args = []
                 i = 0
                 # convert each string in the argument into a python friendly escaped string.
                 while i < len(curr_args):
@@ -69,6 +70,10 @@ class Bear(object):
                         cn = cura.index('="')
                         curr_args[i] = cura[0:cn+1] + "'" + cura[cn+1:]
                         curr_args[i] = curr_args[i] + "'"
+                    if "-o" in curr_args[i]:
+                        del_arg = curr_args[i+1]
+                        curr_args.remove(curr_args[i])
+                        curr_args.remove(del_arg)
                     i += 1
                 curr_args[0] += (" -fdirectives-only -E")
                 work_dir = curr_command["directory"]
