@@ -1,6 +1,6 @@
 # Module : Description.py 
 # Description : Contains functions which generate descriptions.
-from core.Utils import *
+from core.utils import *
 from core.logger import get_logger
 
 from os.path import join

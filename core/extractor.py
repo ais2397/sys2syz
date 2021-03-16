@@ -1,6 +1,6 @@
 # Module : Extractor.py
 # Description : Extracts the necessary details from the source code
-from core.Utils import Utils
+from core.utils import Utils
 from core.logger import get_logger
 
 from os.path import join, basename, isdir, isfile, exists

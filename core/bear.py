@@ -1,6 +1,6 @@
 # Module : Bear.py 
 # Description : Contains functions which handle the compilation of a file
-from core.Utils import Utils
+from core.utils import Utils
 from core.logger import get_logger
 
 import os

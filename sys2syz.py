@@ -1,11 +1,11 @@
 # User imports
-from core.Utils import Utils
+from core.utils import Utils
 from core.logger import get_logger
 
-from core.Bear import *
-from core.Extractor import Extractor, Ioctl
-from core.C2xml import *
-from core.Descriptions import *
+from core.bear import *
+from core.extractor import Extractor, Ioctl
+from core.c2xml import *
+from core.descriptions import *
 
 # Default imports 
 import argparse

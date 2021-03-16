@@ -1,6 +1,6 @@
 # Module : C2xml.py 
 # Description : Run C2xml and verify the results
-from core.Utils import *
+from core.utils import *
 from core.logger import get_logger
 
 from os.path import join, basename, isdir, isfile, exists
