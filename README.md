@@ -121,7 +121,7 @@ i2c_op_t_flags
 Features yet to be implemented:
 - Generation of syzkaller descriptions for syscalls.
 - Generation of descriptions for functions, passed as arguments to syscalls.
-- Detection of values for enums
+- Detection of flag values for enums
 - Calculating Attributes for structs and unions
 
 This tool is developed by Ayushi Sharma
