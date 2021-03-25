@@ -28,12 +28,13 @@ class Bear(object):
         Generates preprocessed files.
         :return: True
         """
+        
         for curr_command in compilation_commands:
             self.logger.debug("[*] Initialising the environment " + curr_command[1])
             Utils(curr_command[1]).run_cmd(f"{' '.join(curr_command[0])} > {curr_command[3]}", doexit = True)
         return True
 
-    def parse_compile_commands(self) -> bool:
+    def parse_compile_commands(self, target_path=None) -> bool:
         """
         Parses commands recorded by bear
         :return:
@@ -50,16 +51,20 @@ class Bear(object):
             return False
 
         json_obj = json.loads(all_cont)
-        driver_path = "/dev/" + os.path.basename(self.target)
+        if self.sysobj.input_type =="ioctl":
+            target_name = os.path.basename(self.target)
+            target_path = "/dev/" + target_name
+        else:
+            target_name = self.target
         
-        output_path = os.path.join(os.getcwd(), "out/preprocessed/", os.path.basename(self.target))
+        output_path = os.path.join(os.getcwd(), "out/preprocessed/", target_name)
 
         if not Utils.dir_exists(output_path):
             os.makedirs(output_path)
-
+    
         for curr_command in json_obj:
             src_file = curr_command["file"]
-            if driver_path in src_file:
+            if target_path in src_file:
                 curr_args = curr_command["arguments"]
                 args = []
                 i = 0

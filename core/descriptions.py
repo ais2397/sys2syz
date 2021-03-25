@@ -31,8 +31,6 @@ class Descriptions(object):
         self.sysobj = sysobj
         self.target = sysobj.target
         
-        self.flag_descriptions = sysobj.macro_details
-        self.ioctls = sysobj.ioctls
         self.logger = get_logger("Descriptions", sysobj.log_level)
 
         self.gflags = {}
@@ -44,8 +42,12 @@ class Descriptions(object):
         self.header_files = []
         self.current_root = None
         self.current_file = None
+        self.functions = {}
         self.trees = {}
-        
+        if self.sysobj.input_type == "ioctl":
+            self.ioctls = sysobj.ioctls
+            self.flag_descriptions = sysobj.macro_details
+
     def get_root(self, ident_name):
         """
         Find root of the tree which stores an element whose ident value is <ident_name>
@@ -121,11 +123,11 @@ class Descriptions(object):
             #for functions
             elif child.get("type") == "function":
                 self.logger.debug("TO-DO: function")
-                return
+                return self.build_function(child, default_name)
             #for pointers: need to define the pointer type and its direction (build_ptr)
             elif child.get("type") == "pointer":
                 self.logger.debug("TO-DO: pointer")
-                return self.build_ptr(child)
+                return self.build_ptr(child, default_name)
             #for arrays, need to define type of elements in array and size of array (if defined)
             elif child.get("type") == "array":
                 self.logger.debug("TO-DO: array")
@@ -298,7 +300,7 @@ class Descriptions(object):
         self.break_enum(name + "_flags", int(child.get("start-line")), int(child.get("end-line")))
         return desc_str
 
-    def build_ptr(self, child):
+    def build_ptr(self, child, default_name=None):
         """
         Build pointer
         :return: 
@@ -306,6 +308,8 @@ class Descriptions(object):
 
         try:
             self.logger.debug("[*] Building pointer")
+            if self.sysobj.input_type == "syscall":
+                self.ptr_dir = input("Enter pointer direction: ")
             #pointer is a builtin type
             if "base-type-builtin" in child.attrib.keys():
                 base_type = child.get("base-type-builtin")
@@ -318,12 +322,41 @@ class Descriptions(object):
                     ptr_str = "ptr[" + self.ptr_dir + ", " + str(type_dict[child.get("base-type-builtin")]) + "]"
             #pointer is of custom type, call get_type function
             else:
-                x = self.get_type(self.resolve_id(self.current_root,child.get("base-type")))
+                if default_name is not None and child.get('ident') is None:
+                    x = self.get_type(self.resolve_id(self.current_root,child.get("base-type")), default_name)
+                else:
+                    x = self.get_type(self.resolve_id(self.current_root,child.get("base-type")))
                 ptr_str = "ptr[" + self.ptr_dir + ", " + x + "]"
             return ptr_str
         except Exception as e:
             self.logger.error(e)
             self.logger.warning("[!] Error occured while resolving pointer")
+
+    def build_function(self, child, default_name=None):
+        """
+        Build function
+        """
+        func_name = child.get('ident')
+        
+        if func_name is None:
+            func_name = default_name
+        func_args={}
+        func_ret = None
+        for i, arg in enumerate(child):
+            arg_name = arg.get('ident')
+            if arg_name is None:
+                arg_name='arg'+str(i)
+            func_args[arg_name]=self.get_type(arg, arg_name)
+        
+        if child.get('base-type-builtin') == None:
+            func_ret = self.get_type(self.resolve_id(child.get('base-type')))
+            
+        '''else:
+            base_type = type_dict.get(child.get("base-type-builtin")))
+            if "int" not in base_type or "void" not in base_type:
+                func_str +=  base_type'''
+        self.functions[func_name] = [func_args, func_ret]
+        return func_name
 
     def build_struct(self, child, default_name="Deafult"):
         """
@@ -443,6 +476,15 @@ class Descriptions(object):
             self.union_defs[name] = [child, elements]
         return str(name)
 
+    def pretty_func(self):
+        func_str = ""
+        for func in self.functions.keys():
+            func_str += func + "("
+            func_str += ", ".join([name + " " + desc for name, desc in zip(self.functions[func][0].keys(), self.functions[func][0].values())]) + ") "
+            if self.functions[func][1] is not None:
+                func_str += self.functions[func][0]
+            func_str+="\n"
+        return func_str
 
     def pretty_structs_unions(self):
         """
@@ -460,9 +502,10 @@ class Descriptions(object):
             strct_strt = int(node.get("start-line"))
             strct_end = int(node.get("end-line"))
             #get flags in vicinity of structs
-            self.find_flags(key, element_names, strct_strt, strct_end)
-            #predictions for uncategorised flags
-            self.possible_flags(key)
+            if self.sysobj.input_type == "ioctl":
+                self.find_flags(key, element_names, strct_strt, strct_end)
+                #predictions for uncategorised flags
+                self.possible_flags(key)
             for element in self.structs_defs[key][1]: 
                 element_str += "\t" + element + "\t" + self.structs_defs[key][1][element] + "\n" 
             elements = " {\n" + element_str + "}\n"
@@ -539,7 +582,7 @@ class Descriptions(object):
 
             if func_descriptions is not None:
                 desc_buf = "# Copyright 2018 syzkaller project authors. All rights reserved.\n# Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.\n# Autogenerated by sys2syz\n\n"
-                desc_buf += "\n".join([includes, rsrc, open_desc, func_descriptions, struct_descriptions, flags_defn])
+                desc_buf += "\n".join([includes, rsrc, open_desc, func_descriptions, self.pretty_func() ,struct_descriptions, flags_defn])
                 output_file_path = os.getcwd() + "/out/" + "dev_" + dev_name + ".txt"
                 output_file = open( output_file_path, "w")
                 output_file.write(desc_buf)
@@ -551,7 +594,7 @@ class Descriptions(object):
             self.logger.error(e)
             self.logger.warning("[!] Error in making device file")
 
-    def run(self):
+    def ioctl_run(self):
         """
         Parses arguments and structures for ioctl calls
         :return: True
@@ -568,9 +611,8 @@ class Descriptions(object):
             self.header_files.append(h_file)
             #for ioctl type is: IOR_, IOW_, IOWR_
             if self.ptr_dir != "null":
-                #Get the type of argument
-                print(cmd, ": ", argument)
                 
+                #Get the type of argument                
                 argument_def = argument.split(" ")[-1].strip()
                 #when argument is of general type as defined in type_dict
                 self.logger.debug("[*] Generating descriptions for " + cmd + ", args: " + argument_def)
@@ -579,7 +621,6 @@ class Descriptions(object):
                     argument_def = argument_def.split("[")
                     argument_name = argument_def[0]
                 elif "*" == argument_def:
-                    print("1")
                     if "void" in argument:
                         arg_str = "buf[" + self.ptr_dir + "]"
                         self.arguments[cmd] = arg_str
@@ -589,10 +630,8 @@ class Descriptions(object):
                 else:
                     argument_name = argument_def
                 if argument_name in type_dict.keys():
-                    print("2.1")
                     self.arguments[cmd] = type_dict.get(argument_name)
                 else:
-                    print("2.2")
                     raw_arg = self.get_id(self.get_root(argument_name), argument_name)
                     if raw_arg is not None:
                         ptr_def = raw_arg[0]
@@ -605,5 +644,36 @@ class Descriptions(object):
             else:
                 self.arguments[cmd] = None
         return True
+
+    def syscall_run(self):
+        """
+        Parses arguments and structures for ioctl calls
+        :return: True
+        """
+        syscall_args = {}
+        self.xml_dir = self.sysobj.out_dir
+        for xml_file in (os.listdir(self.xml_dir)):
+            tree = ET.parse(join(self.xml_dir, xml_file))
+            self.trees[tree] = xml_file
+        args_name = self.target + "_args"
+        syscall_root = self.get_root(args_name)
+        for element in syscall_root:
+                #if element is found in the tree call get_type 
+                #function, to find the type of argument for descriptions
+            if element.get("ident") == args_name:
+                for child in element:
+                    syscall_args[child.get('ident')]=self.get_syscall_arg(child.get('base-type'))
+                break
+        self.functions[self.target] = [syscall_args, None]
+        print("--------------Description--------------")
+        print("\n".join([self.pretty_func(), self.pretty_structs_unions()]))
+
+    def get_syscall_arg(self, base_id):
+        for element in self.resolve_id(self.current_root, base_id):
+            if element.get('ident') == "le":
+                element_base = self.resolve_id(self.current_root, element.get('base-type'))
+                for child in element_base:
+                    return self.get_type(child)
+
         
          
