@@ -1,5 +1,7 @@
 # Sys2Syz <!-- omit in toc -->
 
+[![LICENSE](https://img.shields.io/badge/License-MIT-green)](https://github.com/AshwAthi8/Project-NetwoFuz/blob/master/LICENSE)
+
 ## Overview <!-- omit in toc -->
 
 Sys2Syz is a tool which automates the conversion of syscalls and other Ioctl calls to [syzkaller's](https://github.com/google/syzkaller) representation. This tool was created with a motive of increasing the syscall coverage for leveling up the support of syzkaller for NetBSD. Currently, the tool only supports grammar generation for NetBSD - we plan to add support for other operating systems soon.
