@@ -53,7 +53,7 @@ Here are the installation instructions for Sys2syz
 - [Bear](https://github.com/rizsotto/Bear) setup
 - [NetBSD src](https://github.com/NetBSD/src) files
 
-This is written for `python3`
+This tool is written in `python3`
 
 ### 3.2. Build on Linux
 
@@ -78,7 +78,7 @@ pip3 install -r requirements.txt
  
 ## 4. Usage
 
- To generate descriptions for a particular device driver(device_driver) run sys2syz.py:
+ To generate descriptions for a particular device driver(device_driver)/syscall run sys2syz.py:
 ```shell
 python3 sys2syz.py -i <syscall/ioctl> -t <absolute_path_to_device_driver_source> -c compile_commands.json -v -o <target_operating_system>
 ```
@@ -116,13 +116,14 @@ i2c_op_t_flags
 
 - Fetches ioctl calls of a particular device driver.
 - Generates a file having syzkaller specific descriptions for fetched ioctl calls.
+- Generation of syzkaller descriptions for syscalls.
+- Generation of descriptions for functions, passed as arguments to syscalls.
+- Detection of flag values for enums
+
 
 ## 7. TODO
 
 Features yet to be implemented:
-- Generation of syzkaller descriptions for syscalls.
-- Generation of descriptions for functions, passed as arguments to syscalls.
-- Detection of flag values for enums
 - Calculating Attributes for structs and unions
 
 This tool is developed by Ayushi Sharma
