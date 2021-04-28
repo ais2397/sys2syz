@@ -153,7 +153,7 @@ def main():
     parser.add_argument("-t", "--target", help="target file to generate descriptions for", type=str, required=True)
     parser.add_argument("-o", "--operating-system", help="target operating system", type=str, required=True)
     parser.add_argument("-c", "--compile-commands", help="path to compile_commands.json", type=str, required=True)
-    parser.add_argument("-v", "--verbosity", help="make Griller spit more things out", action="count")
+    parser.add_argument("-v", "--verbosity", help="Sys2syz log level", action="count")
     args = parser.parse_args()
 
     logging = get_logger("Syz2syz", args.verbosity)
