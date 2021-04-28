@@ -80,7 +80,7 @@ pip3 install -r requirements.txt
 
  To generate descriptions for a particular device driver(device_driver) run sys2syz.py:
 ```shell
-python sys2syz.py -t <absolute_path_to_device_driver_source> -c compile_commands.json -v -o <target_operating_system>
+python3 sys2syz.py -i <syscall/ioctl> -t <absolute_path_to_device_driver_source> -c compile_commands.json -v -o <target_operating_system>
 ```
 This would generate a ```dev_<device_driver>.txt``` file in the ```out``` directory
 
