@@ -55,12 +55,6 @@ Here are the installation instructions for Sys2syz
 
 This is written for `python3`
 
-Install the python dependencies using 
-
-```shell
-python3 -m pip install pybind11 lxml pylcs py_common_subseq
-```
-
 ### 3.2. Build on Linux
 
 - Clone the repo
@@ -68,6 +62,11 @@ python3 -m pip install pybind11 lxml pylcs py_common_subseq
  git clone https://github.com/ais2397/sys2syz.git
  cd sys2syz
  ```
+- Install the python dependencies using 
+
+```shell
+pip3 install -r requirements.txt
+```
 - Run the setup script
 
 **Note:** This step requires
