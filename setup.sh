@@ -40,6 +40,7 @@ do
 			-c)
 					echo "CLEANING..."
 					rm compile_commands.json
+					rm -r tags
 					rm -r preprocessed
 					;;
 			esac
