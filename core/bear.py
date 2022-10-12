@@ -41,8 +41,9 @@ class Bear(object):
         """
         CompilationCommand = collections.namedtuple("CompilationCommand", ["curr_args", "work_dir", "src_file", "output_file"])
         commands = []
-        
+
         try: 
+            self.logger.debug("[*] Parsing compile_commands.json")
             fp = open(self.compile_commands, "r")
             all_cont = fp.read()
             fp.close()
@@ -61,10 +62,11 @@ class Bear(object):
 
         if not Utils.dir_exists(output_path):
             os.makedirs(output_path)
-    
+        flag = 0
         for curr_command in json_obj:
             src_file = curr_command["file"]
             if target_path in src_file:
+                flag = 1
                 curr_args = curr_command["arguments"]
                 args = []
                 i = 0
@@ -86,9 +88,12 @@ class Bear(object):
                 self.logger.debug("[*] Extracting commands for " + src_file.split("/")[-1] )
                 commands.append(CompilationCommand(curr_args, work_dir, src_file, output_file))
         
-        self.logger.debug("[*] Commands Extracted")
-        
-        return self.compile_target(commands)
+        if flag == 0:
+            self.logger.error("Unable to find the target in compile_commands.json")
+            return False
+        else:
+            self.logger.debug("[*] Found the target in compile_commands.json")
+            return self.compile_target(commands)
 
 def is_gcc_flag_allowed(curr_flag):
     """

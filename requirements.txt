@@ -1,0 +1,5 @@
+collection==0.1.6
+colorlog==6.7.0
+fuzzywuzzy==0.18.0
+lxml==4.9.1
+python-ctags3==1.5.0

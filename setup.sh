@@ -25,11 +25,11 @@ do
 			-b)
 					echo "Generating compile_commands.json"
 					cd ${OPTARG}
-					bear ./build.sh -j4 -m amd64 -u -U -T ../tools/ -O ../obj/ -R ../release -D ../dest release
+					bear -- ./build.sh -j4 -m amd64 -u -U -T ../tools/ -O ../obj/ -R ../release -D ../dest release
 					mv compile_commands.json $SYS2SYZ_PATH/.
 					cd $SYS2SYZ_PATH
+					ctags -R ~/Desktop/work/src
 					echo $SYS2SYZ_PATH
-					
 					;;
 			-s)
 					echo "SETTING UP"

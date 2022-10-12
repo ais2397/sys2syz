@@ -22,7 +22,7 @@ def get_logger(name : str, level : int) -> logging.Logger:
         l.setLevel(logging.DEBUG)
 
     stream_h = logging.StreamHandler()
-    file_h = logging.FileHandler('%s.log' % name)
+    file_h = logging.FileHandler('logs/%s.log' % name)
 
     formatter = ColoredFormatter(
         "%(asctime)-s %(name)s [%(levelname)s] %(log_color)s%(message)s%(reset)s",
