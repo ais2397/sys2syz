@@ -34,6 +34,8 @@ do
 			-s)
 					echo "SETTING UP"
 					apt-get install -y bear
+					apt-get install universal-ctags 
+
 					;;
 			-c)
 					echo "CLEANING..."
