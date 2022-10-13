@@ -34,7 +34,7 @@ do
 			-s)
 					echo "SETTING UP"
 					apt-get install -y bear
-					apt-get install universal-ctags 
+					apt-get install -y universal-ctags 
 
 					;;
 			-c)
