@@ -28,6 +28,9 @@ do
 					bear -- ./build.sh -j4 -m amd64 -u -U -T ../tools/ -O ../obj/ -R ../release -D ../dest release
 					mv compile_commands.json $SYS2SYZ_PATH/.
 					cd $SYS2SYZ_PATH
+					mkdir out
+					cd out
+					
 					ctags -R ~/Desktop/work/src
 					echo $SYS2SYZ_PATH
 					;;
@@ -36,6 +39,11 @@ do
 					apt-get install -y bear
 					apt-get install -y universal-ctags 
 
+					mkdir out
+					cd out
+					mkdir preprocessed
+					cd $SYS2SYZ_PATH
+					echo "Output directory created: out"
 					;;
 			-c)
 					echo "CLEANING..."
