@@ -24,13 +24,14 @@ class Sys2syz(object):
         self.os = os_name
         self.os_type = None
         self.log_level = log_level
+        if not exists(os.path.join(os.getcwd(), "out/preprocessed/")):
+            os.makedirs(os.path.join(os.getcwd(), "out/preprocessed/"))
 
         if input_type == "ioctl":
             self.target = os.path.realpath(target)
             self.out_dir = os.path.join(os.getcwd(), "out/preprocessed/", basename(self.target), "out")
             self.macro_details = ""
-            self.ioctls = []
-            
+            self.ioctls = []            
             self.bear = Bear(self)
             self.c2xml = C2xml(self)
             # initialize the sub classes
