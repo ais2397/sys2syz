@@ -16,20 +16,21 @@ import string
 
 class Sys2syz(object):
     NETBSD = 1
-    supported_os = {'NetBSD': NETBSD}
+    LINUX = 2
+    supported_os = {'netbsd': NETBSD, 'linux': LINUX}
 
     def __init__(self, input_type, target, compile_commands, os_name, log_level):
         self.input_type = input_type
         self.compile_commands = compile_commands
-        self.os = os_name
-        self.os_type = None
+        self.os = os_name.lower()
+        self.os_type = self.supported_os[self.os]
         self.log_level = log_level
-        if not exists(os.path.join(os.getcwd(), "out/preprocessed/")):
-            os.makedirs(os.path.join(os.getcwd(), "out/preprocessed/"))
+        if not exists(os.path.join(os.getcwd(), "out/", self.os, "preprocessed/")):
+            os.makedirs(os.path.join(os.getcwd(), "out/", self.os, "preprocessed/"))
 
         if input_type == "ioctl":
             self.target = os.path.realpath(target)
-            self.out_dir = os.path.join(os.getcwd(), "out/preprocessed/", basename(self.target), "out")
+            self.out_dir = os.path.join(os.getcwd(), "out/", self.os, "preprocessed/", basename(self.target), "out")
             self.macro_details = ""
             self.ioctls = []            
             self.bear = Bear(self)
@@ -42,7 +43,7 @@ class Sys2syz(object):
 
         if input_type == "syscall":
             self.target = target
-            self.out_dir = os.path.join(os.getcwd(), "out/preprocessed/", basename(self.target), "out")
+            self.out_dir = os.path.join(os.getcwd(), "out/", self.os, "preprocessed/", basename(self.target), "out")
             self.bear = Bear(self)
             self.c2xml = C2xml(self)
             self.syscall = Syscall(self)
