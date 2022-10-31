@@ -25,10 +25,26 @@ class Ioctl(object):
         return str(self.types[self.type]) + ", " + str(self.command)  + ", " + str(self.filename) + ", " + str(self.description)
 
 class Extractor(object):
-    io = re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 
-    iow = re.compile(r"#define\s+(.*)\s+_IOW\((.*),\s+(.*),\s+(.*)\).*") #regex for IOW_
-    ior = re.compile(r"#define\s+(.*)\s+_IOR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOR_
-    iowr = re.compile(r"#define\s+(.*)\s+_IOWR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOWR_
+
+    #define a regex map for the ioctls corresponding to OS
+    ioctl_regex_map = {
+        1: "linux_type", 2: "linux_type"
+    }
+    
+    #define regex for the different variations of all the ioctl commands found accross the supported OSes
+    ioctl_regex_type = { 
+        "linux_type": {
+            "io": re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*"), # regex for IO_ 
+            "iow": re.compile(r"#define\s+(.*)\s+_IOW\((.*),\s+(.*),\s+(.*)\).*"), #regex for IOW_
+            "ior": re.compile(r"#define\s+(.*)\s+_IOR\((.*),\s+(.*),\s+(.*)\).*"), #regex for IOR_
+            "iowr" : re.compile(r"#define\s+(.*)\s+_IOWR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOWR_
+        }
+    }
+    
+    #io = re.compile(r"#define\s+(.*)\s+_IO\((.*)\).*") # regex for IO_ 
+    #iow = re.compile(r"#define\s+(.*)\s+_IOW\((.*),\s+(.*),\s+(.*)\).*") #regex for IOW_
+    #ior = re.compile(r"#define\s+(.*)\s+_IOR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOR_
+    #iowr = re.compile(r"#define\s+(.*)\s+_IOWR\((.*),\s+(.*),\s+(.*)\).*") #regex for IOWR_
     macros = re.compile(r"#define\s*\t*([A-Z_0-9]*)\t*\s*.*")
     more_macros = re.compile(r"#define(\s|\t)+([A-Z_0-9]*)[\t|\s]+(?!_IOWR|_IOR|_IOW|_IO|\()[0-9]*x?[a-z0-9]*")#define(\s|\t)+([A-Z_0-9]*)[\t\s]+([^_IOWR{][0-9]*)")#define(\s|\t)+([^_][A-Z_0-9]*)\t*\s*.*")
     
@@ -37,9 +53,11 @@ class Extractor(object):
         self.target = sysobj.target
         self.files = os.listdir(self.target)
         self.logger = get_logger("Extractor", sysobj.log_level)
+        self.os_type = sysobj.os_type
+        self.ioctl_type = self.ioctl_regex_map[self.os_type]
 
         self.ioctls = []
-        self.target_dir = join(os.getcwd(), "out/preprocessed/", basename(self.target))
+        self.target_dir = join(os.getcwd(), "out/", self.sysobj.os, "preprocessed/", basename(self.target))
         
         if not exists(self.target_dir):
             os.mkdir(self.target_dir)
@@ -62,22 +80,22 @@ class Extractor(object):
                 continue
 
             for line in content:
-                io_match = self.io.match(line)
+                io_match = self.ioctl_regex_type[self.ioctl_type]["io"].match(line)
                 if io_match:
                     self.ioctls.append(Ioctl(Ioctl.IO, file, io_match.groups()[0].strip()))
                     continue
                         
-                ior_match = self.ior.match(line)
+                ior_match = self.ioctl_regex_type[self.ioctl_type]["ior"].match(line)
                 if ior_match:
                     self.ioctls.append(Ioctl(Ioctl.IOR, file, ior_match.groups()[0].strip(), ior_match.groups()[-1]))
                     continue
 
-                iow_match = self.iow.match(line)
+                iow_match = self.ioctl_regex_type[self.ioctl_type]["iow"].match(line)
                 if iow_match:
                     self.ioctls.append(Ioctl(Ioctl.IOW, file, iow_match.groups()[0].strip(), iow_match.groups()[-1]))
                     continue
                 
-                iowr_match = self.iowr.match(line)
+                iowr_match = self.ioctl_regex_type[self.ioctl_type]["iowr"].match(line)
                 if iowr_match:
                     self.ioctls.append(Ioctl(Ioctl.IOWR, file, iowr_match.groups()[0].strip(), iowr_match.groups()[-1]))
                     continue

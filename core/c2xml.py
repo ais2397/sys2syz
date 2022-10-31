@@ -20,7 +20,7 @@ class C2xml(object):
         :return:
         """
         cwd = os.getcwd()
-        preprocessed_path = join(os.getcwd(), "out/preprocessed/", basename(self.target))
+        preprocessed_path = join(os.getcwd(), "out/", self.sysobj.os, "preprocessed/", basename(self.target))
         if not dir_exists(self.output_path):
             os.makedirs(self.output_path)
         for filename in os.listdir(preprocessed_path):

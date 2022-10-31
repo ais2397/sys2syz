@@ -12,13 +12,13 @@ class Syscall(object):
                 self.verbosity = self.sysobj.log_level
 
                 self.logger = get_logger("Syscall", self.verbosity)
-                self.output_path = os.path.join(os.getcwd(), "out/preprocessed/")
+                self.output_path = os.path.join(os.getcwd(), "out/", self.os, "preprocessed/")
         
         def find_file(self):
                 """Find the file containing the syscall definition using ctags"""
                 self.logger.debug("[+] Finding syscall definition")
                 
-                tags_file = os.path.join(os.getcwd(), "tags")
+                tags_file = os.path.join(os.getcwd(), "tags", "tags_"+self.os)
                 print(tags_file)
                 if not os.path.exists(tags_file):
                         self.logger.critical("[+] Tags file not found")

@@ -7,11 +7,11 @@ import os
 import collections
 import json
 
-'''INVALID_GCC_FLAGS = ['-mno-thumb-interwork', '-fconserve-stack', '-fno-var-tracking-assignments',
+INVALID_GCC_FLAGS = ['-mno-thumb-interwork', '-fconserve-stack', '-fno-var-tracking-assignments',
                      '-fno-delete-null-pointer-checks', '--param=allow-store-data-races=0',
                      '-Wno-unused-but-set-variable', '-Werror=frame-larger-than=1', '-Werror', '-Wall',
                      '-fno-jump-tables', '-nostdinc', '-mpc-relative-literal-loads', '-mabi=lp64']
-'''
+
 
 class Bear(object):
     def __init__(self, sysobj):
@@ -21,7 +21,7 @@ class Bear(object):
         self.verbosity = self.sysobj.log_level
 
         self.logger = get_logger("Bear", self.verbosity)
-        self.output_path = os.path.join(os.getcwd(), "out/preprocessed/")
+        self.output_path = os.path.join(os.getcwd(), "out/", self.sysobj.os, "preprocessed/")
 
     def compile_target(self, compilation_commands) -> bool:
         """
@@ -54,15 +54,19 @@ class Bear(object):
         json_obj = json.loads(all_cont)
         if self.sysobj.input_type =="ioctl":
             target_name = os.path.basename(self.target)
-            target_path = "/dev/" + target_name
+            if self.sysobj.os_type == 1:
+                target_path = "/dev/" + target_name
+            elif self.sysobj.os_type == 2:
+                target_path = "drivers/" + target_name
         else:
             target_name = self.target
         
-        output_path = os.path.join(os.getcwd(), "out/preprocessed/", target_name)
+        output_path = os.path.join(os.getcwd(), "out/", self.sysobj.os, "preprocessed/", target_name)
 
         if not Utils.dir_exists(output_path):
             os.makedirs(output_path)
         flag = 0
+
         for curr_command in json_obj:
             src_file = curr_command["file"]
             if target_path in src_file:
