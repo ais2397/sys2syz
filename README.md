@@ -2,7 +2,7 @@
 
 [![LICENSE](https://img.shields.io/badge/License-MIT-green)](https://github.com/AshwAthi8/Project-NetwoFuz/blob/master/LICENSE)
 
-## Overview <!-- omit in toc -->
+## Overview <!-- omit in toc --> 
 
 Sys2Syz is a tool which automates the conversion of syscalls and other Ioctl calls to [syzkaller's](https://github.com/google/syzkaller) representation. This tool was created with a motive of increasing the syscall coverage for leveling up the support of syzkaller for NetBSD. Currently, the tool only supports grammar generation for [NetBSD](https://github.com/NetBSD/src) (in future we plan to extend support for [Linux](https://github.com/torvalds/linux)).
 
@@ -14,7 +14,7 @@ Sys2Syz is a tool which automates the conversion of syscalls and other Ioctl cal
   - [3.1. Dependencies](#31-dependencies)
   - [3.2. Build on Linux](#32-build-on-linux)
 - [4. Usage](#4-usage)
-- [5. Results](#5-results)
+- [5. Example](#5-example)
 - [6. Features](#6-features)
 - [7. TODO](#7-todo)
 
@@ -50,11 +50,17 @@ The tool supports generation of syzkaller descriptions for NetBSD device driver'
 
 Here are the installation instructions for Sys2syz
 
+### Prerequisites
+
+- Python 3.6+ 
+- Linux 
+- pip 
+
 ### 3.1. Dependencies
 
 - [Bear](https://github.com/rizsotto/Bear) setup
 - [CTags](https://github.com/universal-ctags/ctags)
-- Kernel source files for the Operating system([NetBSD](https://github.com/NetBSD/src)/[Linux](https://github.com/torvalds/linux))
+- Kernel source files for the Operating system ([NetBSD](https://github.com/NetBSD/src)/ [Linux](https://github.com/torvalds/linux))
 
 This tool is written in `python3`
 
@@ -73,7 +79,7 @@ Initial setup to install the dependencies
  ```
 
 **Note:** For this step its mandatory to have the operating system toolchain.
--  `make clean` the kernel source directory before this step if some object files already exist. This is to avoid missing the extraction of compilation commands for any of the artifacts.
+-  `make clean` the kernel source directory before this step if you have previously built the kernel.
 
  ```shell
  ./setup.sh -b <operating_system> <path_to_kernel_src>
@@ -81,13 +87,20 @@ Initial setup to install the dependencies
  
 ## 4. Usage
 
- To generate descriptions for ioctls of a device driver/syscall run sys2syz.py:
+- Run the tool
+
+ ```shell
+ python3 sys2syz.py -h
+```
+
+To generate descriptions for ioctls of a device driver/syscall run sys2syz.py:
 ```shell
 python3 sys2syz.py -i <syscall/ioctl> -t <absolute_path_to_device_driver_source/name_of_syscall> -c compile_commands.json -v -o <target_operating_system>
 ```
+
 This would generate a ```dev_<device_driver>.txt``` file in the ```out/<target_operating_system>``` directory in case of ioctls and for syscalls it prints the generated descriptions on stdout.
 
-## 5. Results
+## 5. Example
 
 ##### Running for NetBSD i2c device driver 
 
@@ -163,16 +176,19 @@ timespec50 {
 
 ## 6. Features
 
-- Fetches ioctl calls of a particular device driver.
-- Generates a file having syzkaller specific descriptions for fetched ioctl calls.
-- Generation of syzkaller descriptions for syscalls.
-- Generation of descriptions for functions, passed as arguments to syscalls.
-- Detection of flag values for enums
+- Supports extraction of ioctl commands and their arguments from device drivers.
+- Supports generation of descriptions for the ioctl commands and their arguments (builtin-types, arrays, pointers, structures and unions).
+- Supports generation of descriptions for syscalls and their arguments (builtin-types, arrays, pointers, structures and unions).
+- Generation of descriptions for functions, passed as arguments to the ioctl commands and syscalls.
+- Suppoorts detection of flag values for the ioctl commands and syscalls.
 
 
 ## 7. TODO
 
 Features yet to be implemented:
-- Calculating Attributes for structs and unions
+
+- [ ] Support for Linux
+- [ ] Support for FreeBSD
+- [ ] Calculating Attributes for structs and unions
 
 This tool is developed by Ayushi Sharma
