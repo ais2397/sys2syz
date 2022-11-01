@@ -152,10 +152,10 @@ def main():
     parser = argparse.ArgumentParser(description="Sys2Syz : A Utility to convert Syscalls and Ioctls to Syzkaller representation")
     
     parser.add_argument("-i", "--input_type", help="input type ioctl/syscall", type=str, required=True)
-    parser.add_argument("-t", "--target", help="target file to generate descriptions for", type=str, required=True)
+    parser.add_argument("-t", "--target", help="target device directory/ syscall name", type=str, required=True)
     parser.add_argument("-o", "--operating-system", help="target operating system", type=str, required=True)
     parser.add_argument("-c", "--compile-commands", help="path to compile_commands.json", type=str, required=True)
-    parser.add_argument("-v", "--verbosity", help="Sys2syz log level", action="count")
+    parser.add_argument("-v", "--verbosity", help="sys2syz log level", action="count")
     args = parser.parse_args()
 
     logging = get_logger("Syz2syz", args.verbosity)
